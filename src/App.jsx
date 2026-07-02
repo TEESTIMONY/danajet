@@ -1,40 +1,66 @@
 import React, { useEffect, useState } from "react";
-import { Moon, ShoppingBag, Sun } from "lucide-react";
+import {
+  ArrowRight as LucideArrowRight,
+  BookCopy as LucideBookCopy,
+  BookOpen as LucideBookOpen,
+  ChevronDown as LucideChevronDown,
+  ExternalLink as LucideExternalLink,
+  FileText as LucideFileText,
+  Layers3 as LucideLayers3,
+  Menu as LucideMenu,
+  MessageCircle as LucideMessageCircle,
+  Minus as LucideMinus,
+  MonitorPlay as LucideMonitorPlay,
+  Moon,
+  MoveUpRight as LucideMoveUpRight,
+  PackageCheck as LucidePackageCheck,
+  Palette as LucidePalette,
+  Plane as LucidePlane,
+  Play as LucidePlay,
+  Plus as LucidePlus,
+  Quote as LucideQuote,
+  Search as LucideSearch,
+  Send as LucideSend,
+  ShoppingBag,
+  Sparkles as LucideSparkles,
+  Star as LucideStar,
+  Sun,
+  X as LucideX,
+} from "lucide-react";
 import { getProduct, getProducts } from "./api/shop";
 import { mockProducts, shopCategories } from "./data/products";
 
-function Glyph({ symbol, size = 20, className = "" }) {
-  return <span className={`glyph-icon ${className}`} style={{ fontSize: size }} aria-hidden="true">{symbol}</span>;
+function SocialTextIcon({ label, size = 16, className = "", style }) {
+  return <span className={`text-icon ${className}`} style={{ fontSize: size, ...style }} aria-hidden="true">{label}</span>;
 }
 
-const makeIcon = (symbol) => (props) => <Glyph symbol={symbol} {...props} />;
-const ArrowRight = makeIcon("→");
-const BookCopy = makeIcon("▣");
-const BookOpen = makeIcon("▤");
-const ChevronDown = makeIcon("⌄");
-const ExternalLink = makeIcon("↗");
-const Facebook = makeIcon("f");
-const FileText = makeIcon("≡");
-const Instagram = makeIcon("◎");
-const Layers3 = makeIcon("≋");
-const Linkedin = makeIcon("in");
-const Minus = makeIcon("−");
-const Menu = makeIcon("☰");
-const MessageCircle = makeIcon("○");
-const MonitorPlay = makeIcon("▶");
-const MoveUpRight = makeIcon("↗");
-const PackageCheck = makeIcon("✓");
-const Palette = makeIcon("◐");
-const Plane = makeIcon("✈");
-const Play = makeIcon("▶");
-const Plus = makeIcon("+");
-const Quote = makeIcon("“");
-const Search = makeIcon("⌕");
-const Send = makeIcon("↗");
-const Sparkles = makeIcon("✦");
-const Star = makeIcon("★");
-const X = makeIcon("×");
-const Youtube = makeIcon("▶");
+const ArrowRight = LucideArrowRight;
+const BookCopy = LucideBookCopy;
+const BookOpen = LucideBookOpen;
+const ChevronDown = LucideChevronDown;
+const ExternalLink = LucideExternalLink;
+const Facebook = (props) => <SocialTextIcon label="f" {...props} />;
+const FileText = LucideFileText;
+const Instagram = (props) => <SocialTextIcon label="ig" {...props} />;
+const Layers3 = LucideLayers3;
+const Linkedin = (props) => <SocialTextIcon label="in" {...props} />;
+const Minus = LucideMinus;
+const Menu = LucideMenu;
+const MessageCircle = LucideMessageCircle;
+const MonitorPlay = LucideMonitorPlay;
+const MoveUpRight = LucideMoveUpRight;
+const PackageCheck = LucidePackageCheck;
+const Palette = LucidePalette;
+const Plane = LucidePlane;
+const Play = LucidePlay;
+const Plus = LucidePlus;
+const Quote = LucideQuote;
+const Search = LucideSearch;
+const Send = LucideSend;
+const Sparkles = LucideSparkles;
+const Star = LucideStar;
+const X = LucideX;
+const Youtube = LucidePlay;
 
 function FlightPath({ variant = "wide", tone = "dark" }) {
   const paths = {
