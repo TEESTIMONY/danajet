@@ -30,8 +30,21 @@ import {
 import { getProduct, getProducts } from "./api/shop";
 import { mockProducts, shopCategories } from "./data/products";
 
-function SocialTextIcon({ label, size = 16, className = "", style }) {
-  return <span className={`text-icon ${className}`} style={{ fontSize: size, ...style }} aria-hidden="true">{label}</span>;
+function BrandIcon({ label, children, className = "", size = 18 }) {
+  return (
+    <svg
+      className={`brand-social-icon ${className}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <title>{label}</title>
+      {children}
+    </svg>
+  );
 }
 
 const ArrowRight = LucideArrowRight;
@@ -39,11 +52,23 @@ const BookCopy = LucideBookCopy;
 const BookOpen = LucideBookOpen;
 const ChevronDown = LucideChevronDown;
 const ExternalLink = LucideExternalLink;
-const Facebook = (props) => <SocialTextIcon label="f" {...props} />;
+const Facebook = (props) => (
+  <BrandIcon label="Facebook" {...props}>
+    <path d="M14 8.35V6.9c0-.7.22-1.08 1.12-1.08H16.5V3.2c-.67-.09-1.43-.14-2.1-.14-2.08 0-3.51 1.27-3.51 3.61v1.68H8.55v2.94h2.34V21h2.89v-9.71h2.4l.37-2.94H14Z" />
+  </BrandIcon>
+);
 const FileText = LucideFileText;
-const Instagram = (props) => <SocialTextIcon label="ig" {...props} />;
+const Instagram = (props) => (
+  <BrandIcon label="Instagram" {...props}>
+    <path d="M7.8 2.75h8.4A5.06 5.06 0 0 1 21.25 7.8v8.4a5.06 5.06 0 0 1-5.05 5.05H7.8a5.06 5.06 0 0 1-5.05-5.05V7.8A5.06 5.06 0 0 1 7.8 2.75Zm0 1.8A3.25 3.25 0 0 0 4.55 7.8v8.4a3.25 3.25 0 0 0 3.25 3.25h8.4a3.25 3.25 0 0 0 3.25-3.25V7.8a3.25 3.25 0 0 0-3.25-3.25H7.8Zm4.2 3.23a4.22 4.22 0 1 1 0 8.44 4.22 4.22 0 0 1 0-8.44Zm0 1.8a2.42 2.42 0 1 0 0 4.84 2.42 2.42 0 0 0 0-4.84Zm4.48-2.86a1.04 1.04 0 1 1 0 2.08 1.04 1.04 0 0 1 0-2.08Z" />
+  </BrandIcon>
+);
 const Layers3 = LucideLayers3;
-const Linkedin = (props) => <SocialTextIcon label="in" {...props} />;
+const Linkedin = (props) => (
+  <BrandIcon label="LinkedIn" {...props}>
+    <path d="M5.35 8.88h3.06V21H5.35V8.88ZM6.89 3a1.78 1.78 0 1 1 0 3.56 1.78 1.78 0 0 1 0-3.56Zm4.04 5.88h2.93v1.65h.04c.41-.78 1.41-1.89 2.9-1.89 3.1 0 3.67 2.04 3.67 4.69V21h-3.06v-6.8c0-1.62-.03-3.71-2.26-3.71-2.27 0-2.62 1.77-2.62 3.59V21h-3.06V8.88Z" />
+  </BrandIcon>
+);
 const Minus = LucideMinus;
 const Menu = LucideMenu;
 const MessageCircle = LucideMessageCircle;
@@ -60,7 +85,11 @@ const Send = LucideSend;
 const Sparkles = LucideSparkles;
 const Star = LucideStar;
 const X = LucideX;
-const Youtube = LucidePlay;
+const Youtube = (props) => (
+  <BrandIcon label="YouTube" {...props}>
+    <path d="M21.58 7.18a3 3 0 0 0-2.11-2.13C17.62 4.55 12 4.55 12 4.55s-5.62 0-7.47.5a3 3 0 0 0-2.11 2.13A31.25 31.25 0 0 0 1.92 12c0 1.62.17 3.25.5 4.82a3 3 0 0 0 2.11 2.13c1.85.5 7.47.5 7.47.5s5.62 0 7.47-.5a3 3 0 0 0 2.11-2.13c.33-1.57.5-3.2.5-4.82 0-1.62-.17-3.25-.5-4.82ZM10.05 15.2V8.8L15.6 12l-5.55 3.2Z" />
+  </BrandIcon>
+);
 
 function FlightPath({ variant = "wide", tone = "dark" }) {
   const paths = {
