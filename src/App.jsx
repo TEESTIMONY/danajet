@@ -1891,7 +1891,7 @@ const adminContactDefaults = {
 
 const adminSiteDefaults = {
   logo: "/assets/danajet-logo.svg",
-  favicon: "/favicon.svg",
+  favicon: "/favicon.jpg",
   primaryColor: "#ef3d0c",
   seoTitle: "Danajet | Helping Authors Make Their Books Soar",
   seoDescription: "Book formatting, design, publishing support, educational resources, and author services by Danajet BookLab.",
