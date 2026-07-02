@@ -1,12 +1,21 @@
 import React, { useEffect, useState } from "react";
 import {
   ArrowRight as LucideArrowRight,
+  BarChart3,
   BookCopy as LucideBookCopy,
   BookOpen as LucideBookOpen,
+  Boxes,
   ChevronDown as LucideChevronDown,
+  ClipboardList,
+  Download,
+  Edit3,
+  Eye,
   ExternalLink as LucideExternalLink,
   FileText as LucideFileText,
+  Image as ImageIcon,
+  Inbox,
   Layers3 as LucideLayers3,
+  LayoutDashboard,
   Menu as LucideMenu,
   MessageCircle as LucideMessageCircle,
   Minus as LucideMinus,
@@ -18,13 +27,19 @@ import {
   Plane as LucidePlane,
   Play as LucidePlay,
   Plus as LucidePlus,
+  PlusCircle,
   Quote as LucideQuote,
+  Save,
   Search as LucideSearch,
   Send as LucideSend,
+  Settings,
   ShoppingBag,
   Sparkles as LucideSparkles,
   Star as LucideStar,
   Sun,
+  Trash2,
+  Upload,
+  Users,
   X as LucideX,
 } from "lucide-react";
 import { getProduct, getProducts } from "./api/shop";
@@ -1797,6 +1812,951 @@ function ReviewsPage() {
   );
 }
 
+const adminNavItems = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "books", label: "Books & Shop", icon: ShoppingBag },
+  { id: "courses", label: "Courses", icon: MonitorPlay },
+  { id: "portfolio", label: "Portfolio", icon: ImageIcon },
+  { id: "reviews", label: "Reviews", icon: Users },
+  { id: "requests", label: "Project Requests", icon: Inbox },
+  { id: "featured", label: "Featured Work", icon: Star },
+  { id: "settings", label: "Site Controls", icon: Settings },
+];
+
+const adminProjectRequests = [
+  { name: "Maya Brooks", service: "Children's Book Design", budget: "$1,000 - $5,000", stage: "Manuscript complete", status: "New", date: "Jul 2, 2026" },
+  { name: "Richard Adams", service: "KDP Upload Support", budget: "Under $1,000", stage: "Needs publishing help", status: "Reviewing", date: "Jul 1, 2026" },
+  { name: "NLS Rwanda", service: "Educational Materials", budget: "$5,000 - $10,000", stage: "Project in progress", status: "Quoted", date: "Jun 29, 2026" },
+  { name: "Tangie Cokes", service: "Full Book Creation", budget: "$1,000 - $5,000", stage: "Idea stage", status: "Contacted", date: "Jun 27, 2026" },
+];
+
+const adminApiMap = [
+  "GET /api/admin/books/",
+  "POST /api/admin/courses/",
+  "PATCH /api/admin/portfolio/:id/",
+  "GET /api/admin/project-requests/",
+  "POST /api/admin/media/upload/",
+];
+
+function AdminMetricCard({ icon: Icon, label, value, copy }) {
+  return (
+    <article className="admin-metric-card">
+      <span><Icon size={22} /></span>
+      <div>
+        <strong>{value}</strong>
+        <p>{label}</p>
+      </div>
+      <small>{copy}</small>
+    </article>
+  );
+}
+
+function AdminSectionHeader({ eyebrow, title, copy, action }) {
+  return (
+    <div className="admin-section-header">
+      <div>
+        <p>{eyebrow}</p>
+        <h2>{title}</h2>
+        {copy && <span>{copy}</span>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function AdminActionButton({ children, variant = "dark", icon: Icon = PlusCircle, onClick }) {
+  return (
+    <button className={`admin-action admin-action-${variant}`} type="button" onClick={onClick}>
+      <Icon size={16} /> {children}
+    </button>
+  );
+}
+
+function AdminEmptyState({ title = "No matching items", copy = "Try another search or add a new item." }) {
+  return (
+    <div className="admin-empty-state">
+      <Boxes size={24} />
+      <strong>{title}</strong>
+      <span>{copy}</span>
+    </div>
+  );
+}
+
+function downloadAdminReport(filename, content) {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function AdminBooksPanel({ products, onAddProduct, onDeleteProduct, onToggleFeatured, query }) {
+  const visibleProducts = products.filter((product) =>
+    `${product.title} ${product.author} ${product.category_label}`.toLowerCase().includes(query)
+  );
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="Shop manager"
+        title="Books and product catalog"
+        copy="Add, edit, delete, publish, unpublish, update pricing, stock, covers, descriptions, Amazon links, and product categories."
+        action={<AdminActionButton onClick={onAddProduct}>Add New Book</AdminActionButton>}
+      />
+      <div className="admin-table">
+        <div className="admin-table-row admin-table-head"><span>Product</span><span>Category</span><span>Price</span><span>Stock</span><span>Status</span><span>Actions</span></div>
+        {visibleProducts.map((product) => (
+          <div className="admin-table-row" key={product.id}>
+            <span><strong>{product.title}</strong><small>{product.author}</small></span>
+            <span>{product.category_label}</span>
+            <span>{formatPrice(product)}</span>
+            <span>{product.inventory}</span>
+            <span><mark>{product.is_featured ? "Featured" : "Draft-ready"}</mark></span>
+            <span className="admin-row-actions">
+              <button type="button" onClick={() => onToggleFeatured(product.id)} aria-label={`Toggle ${product.title} featured status`}><Eye size={15} /></button>
+              <button type="button" onClick={() => onToggleFeatured(product.id)} aria-label={`Edit ${product.title}`}><Edit3 size={15} /></button>
+              <button type="button" onClick={() => onDeleteProduct(product.id)} aria-label={`Delete ${product.title}`}><Trash2 size={15} /></button>
+            </span>
+          </div>
+        ))}
+      </div>
+      {visibleProducts.length === 0 && <AdminEmptyState copy="No books match your current search." />}
+    </section>
+  );
+}
+
+function AdminCoursesPanel({ courses, onAddCourse, onEditCourse, onDeleteCourse, onToggleCourseStatus, query }) {
+  const visibleCourses = courses.filter((course) =>
+    `${course.title} ${course.category} ${course.status}`.toLowerCase().includes(query)
+  );
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="Academy manager"
+        title="Courses, tutorials, templates, and embeds"
+        copy="Control course titles, categories, prices, waitlist status, media thumbnails, video embeds, Canva links, downloadable files, and access notes."
+        action={<AdminActionButton onClick={onAddCourse}>Add Course</AdminActionButton>}
+      />
+      <div className="admin-card-grid">
+        {visibleCourses.map((course, index) => (
+          <article className="admin-content-card" key={course.title}>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <h3>{course.title}</h3>
+            <p>{course.category}</p>
+            <div><mark>{course.status}</mark><small>{course.price} waitlist</small></div>
+            <footer>
+              <button type="button" onClick={() => onEditCourse(course)}><Edit3 size={15} /> Edit</button>
+              <button type="button" onClick={() => onToggleCourseStatus(course.id)}>Status</button>
+              <button type="button"><Upload size={15} /> Media</button>
+              <button type="button" onClick={() => onDeleteCourse(course.id)}><Trash2 size={15} /> Delete</button>
+            </footer>
+          </article>
+        ))}
+      </div>
+      {visibleCourses.length === 0 && <AdminEmptyState copy="No courses match your current search." />}
+    </section>
+  );
+}
+
+function AdminPortfolioPanel({ portfolioItems, onAddPortfolioItem, onEditPortfolioItem, onDeletePortfolioItem, query }) {
+  const visiblePortfolioItems = portfolioItems.filter((project) =>
+    `${project.title} ${project.category} ${project.client || ""} ${project.status || ""}`.toLowerCase().includes(query)
+  );
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="Portfolio manager"
+        title="Portfolio projects and case studies"
+        copy="Add new work, update thumbnails, categories, project descriptions, embedded links, client notes, and visibility."
+        action={<AdminActionButton onClick={onAddPortfolioItem}>Add Portfolio Item</AdminActionButton>}
+      />
+      <div className="admin-portfolio-grid">
+        {visiblePortfolioItems.map((project) => (
+          <article className="admin-portfolio-card" key={project.id}>
+            <img src={`/assets/portfolio/page-${project.image}.jpg`} alt="" />
+            <div>
+              <h3>{project.title}</h3>
+              <p>{portfolioCategories.find((category) => category.id === project.category)?.label}</p>
+              {(project.client || project.status) && <small>{project.client || "Portfolio item"} - {project.status || "Draft"}</small>}
+            </div>
+            <span>
+              <button type="button" onClick={() => onEditPortfolioItem(project)} aria-label={`Edit ${project.title}`}><Edit3 size={15} /></button>
+              <button type="button" onClick={() => onDeletePortfolioItem(project.id)} aria-label={`Delete ${project.title}`}><Trash2 size={15} /></button>
+            </span>
+          </article>
+        ))}
+      </div>
+      {visiblePortfolioItems.length === 0 && <AdminEmptyState copy="No portfolio projects match your current search." />}
+    </section>
+  );
+}
+
+function AdminReviewsPanel({ reviews, onAddReview, onEditReview, onDeleteReview, query }) {
+  const visibleReviews = reviews.filter((review) =>
+    `${review.name} ${review.role} ${review.quote} ${review.ctaLabel || ""}`.toLowerCase().includes(query)
+  );
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="Social proof"
+        title="Reviews and testimonials"
+        copy="Manage rating, review text, author name, role, profile picture, CTA label, Amazon/Canva links, and display order."
+        action={<AdminActionButton onClick={onAddReview}>Add Review</AdminActionButton>}
+      />
+      <div className="admin-review-list">
+        {visibleReviews.map((review) => (
+          <article className="admin-review-row" key={review.id || review.name}>
+            <ReviewerAvatar review={review} />
+            <div><strong>{review.name}</strong><small>{review.role}</small><p>{review.quote}</p></div>
+            <span>{review.rating || 5}.0 <Star size={14} fill="currentColor" /></span>
+            <button type="button" onClick={() => onEditReview(review)} aria-label={`Edit review from ${review.name}`}><Edit3 size={15} /></button>
+            <button type="button" onClick={() => onDeleteReview(review.id)} aria-label={`Delete review from ${review.name}`}><Trash2 size={15} /></button>
+          </article>
+        ))}
+      </div>
+      {visibleReviews.length === 0 && <AdminEmptyState copy="No reviews match your current search." />}
+    </section>
+  );
+}
+
+function AdminRequestsPanel({ requests, onCycleRequestStatus, onDownloadRequest, onDownloadAllRequests, query }) {
+  const visibleRequests = requests.filter((request) =>
+    `${request.name} ${request.service} ${request.budget} ${request.stage} ${request.status}`.toLowerCase().includes(query)
+  );
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="Inbox"
+        title="Project requests and reports"
+        copy="Receive submissions, filter by status, assign follow-up, download report files, and track each request through the project pipeline."
+        action={<AdminActionButton icon={Download} onClick={onDownloadAllRequests}>Download All</AdminActionButton>}
+      />
+      <div className="admin-request-board">
+        {visibleRequests.map((request) => (
+          <article className="admin-request-card" key={`${request.name}-${request.date}`}>
+            <div><strong>{request.name}</strong><mark>{request.status}</mark></div>
+            <p>{request.service}</p>
+            <span>{request.budget}</span>
+            <small>{request.stage} - {request.date}</small>
+            <footer>
+              <button type="button" onClick={() => onCycleRequestStatus(request.name)}>Open Request</button>
+              <button type="button" onClick={() => onCycleRequestStatus(request.name)}>Next Status</button>
+              <button type="button" onClick={() => onDownloadRequest(request)}><Download size={14} /> Report</button>
+            </footer>
+          </article>
+        ))}
+      </div>
+      {visibleRequests.length === 0 && <AdminEmptyState copy="No requests match your current search." />}
+    </section>
+  );
+}
+
+function AdminFeaturedPanel({ highlights, onAddHighlight, onEditHighlight, onDeleteHighlight, query }) {
+  const visibleHighlights = highlights
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.toLowerCase().includes(query));
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="Homepage controls"
+        title="Featured work highlights"
+        copy="Edit the homepage featured work list, reorder items, add new client names, and control what appears above the portfolio."
+        action={<AdminActionButton onClick={onAddHighlight}>Add Highlight</AdminActionButton>}
+      />
+      <div className="admin-feature-list">
+        {visibleHighlights.map(({ item, index }) => (
+          <article key={`${item}-${index}`}>
+            <span>{index + 1}</span>
+            <strong>{item}</strong>
+            <button type="button" onClick={() => onEditHighlight(index)} aria-label={`Edit featured work ${index + 1}`}><Edit3 size={15} /></button>
+            <button type="button" onClick={() => onDeleteHighlight(index)}><Trash2 size={15} /></button>
+          </article>
+        ))}
+      </div>
+      {visibleHighlights.length === 0 && <AdminEmptyState copy="No featured work items match your current search." />}
+    </section>
+  );
+}
+
+function AdminSettingsPanel({ settings, onUpdateSetting, onSaveSettings }) {
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="API ready"
+        title="Future Django REST API connections"
+        copy="Frontend-only for now. These cards show the backend endpoints this dashboard is designed to connect with later."
+        action={<AdminActionButton icon={Save} onClick={onSaveSettings}>Save Draft</AdminActionButton>}
+      />
+      <div className="admin-api-grid">
+        {adminApiMap.map((endpoint) => <code key={endpoint}>{endpoint}</code>)}
+      </div>
+      <div className="admin-editor-grid">
+        <label>Site announcement<input value={settings.announcement} onChange={(event) => onUpdateSetting("announcement", event.target.value)} /></label>
+        <label>Primary CTA<input value={settings.primaryCta} onChange={(event) => onUpdateSetting("primaryCta", event.target.value)} /></label>
+        <label>Amazon Store URL<input value={settings.amazonUrl} onChange={(event) => onUpdateSetting("amazonUrl", event.target.value)} /></label>
+        <label>Contact Email<input value={settings.email} onChange={(event) => onUpdateSetting("email", event.target.value)} /></label>
+      </div>
+    </section>
+  );
+}
+
+function AdminModal({ title, eyebrow, children, onClose, footer }) {
+  return (
+    <div className="admin-modal-backdrop" role="presentation">
+      <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-modal-title">
+        <header>
+          <div>
+            <p>{eyebrow}</p>
+            <h2 id="admin-modal-title">{title}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close popup"><X size={20} /></button>
+        </header>
+        <div className="admin-modal-body">{children}</div>
+        <footer>{footer}</footer>
+      </section>
+    </div>
+  );
+}
+
+function AdminDashboardPage() {
+  const [activeAdminSection, setActiveAdminSection] = useState("overview");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [activeAdminModal, setActiveAdminModal] = useState(null);
+  const [editingCourseId, setEditingCourseId] = useState(null);
+  const [editingPortfolioId, setEditingPortfolioId] = useState(null);
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editingHighlightIndex, setEditingHighlightIndex] = useState(null);
+  const [adminSearch, setAdminSearch] = useState("");
+  const [adminNotice, setAdminNotice] = useState("Local dashboard changes are not connected to Django yet.");
+  const [adminProducts, setAdminProducts] = useState(() => mockProducts.slice(0, 6));
+  const [adminCourses, setAdminCourses] = useState(() =>
+    courseCategories.flatMap((category, categoryIndex) =>
+      category.items.map((title, itemIndex) => ({
+        id: `course-${categoryIndex}-${itemIndex}`,
+        title,
+        category: category.title,
+        price: "$0",
+        status: "Coming soon",
+      }))
+    ).slice(0, 8)
+  );
+  const [adminPortfolioItems, setAdminPortfolioItems] = useState(() =>
+    projects.slice(0, 9).map((project, index) => ({ ...project, id: `portfolio-${index}` }))
+  );
+  const [adminReviews, setAdminReviews] = useState(() => testimonials.map((review, index) => ({ ...review, id: `review-${index}`, rating: 5 })));
+  const [adminRequests, setAdminRequests] = useState(adminProjectRequests);
+  const [adminHighlights, setAdminHighlights] = useState(featuredWorkHighlights);
+  const [adminSettings, setAdminSettings] = useState({
+    announcement: "Worked with authors worldwide",
+    primaryCta: "Start a Project",
+    amazonUrl: "https://amazon.com/",
+    email: "hello@danajet.com",
+  });
+  const [bookDraft, setBookDraft] = useState({
+    title: "",
+    author: "",
+    category_label: "",
+    price: "",
+    inventory: "",
+    amazonUrl: "",
+    description: "",
+  });
+  const [courseDraft, setCourseDraft] = useState({
+    title: "",
+    category: "Book Design & Publishing",
+    price: "$0",
+    status: "Draft",
+    embedUrl: "",
+    description: "",
+  });
+  const [portfolioDraft, setPortfolioDraft] = useState({
+    title: "",
+    category: "children",
+    image: "03",
+    client: "",
+    status: "Draft",
+    embedUrl: "",
+    description: "",
+  });
+  const [reviewDraft, setReviewDraft] = useState({
+    name: "",
+    role: "",
+    quote: "",
+    rating: 5,
+    service: "amazon",
+    project: "",
+    ctaLabel: "View on Amazon",
+    ctaUrl: "",
+    image: "",
+  });
+  const [highlightDraft, setHighlightDraft] = useState("");
+
+  const normalizedAdminSearch = adminSearch.trim().toLowerCase();
+  const showAdminNotice = (message) => setAdminNotice(message);
+
+  const resetBookDraft = () => {
+    setBookDraft({
+      title: "",
+      author: "",
+      category_label: "",
+      price: "",
+      inventory: "",
+      amazonUrl: "",
+      description: "",
+    });
+  };
+
+  const resetCourseDraft = () => {
+    setCourseDraft({
+      title: "",
+      category: "Book Design & Publishing",
+      price: "$0",
+      status: "Draft",
+      embedUrl: "",
+      description: "",
+    });
+  };
+
+  const resetPortfolioDraft = () => {
+    setPortfolioDraft({
+      title: "",
+      category: "children",
+      image: "03",
+      client: "",
+      status: "Draft",
+      embedUrl: "",
+      description: "",
+    });
+  };
+
+  const resetReviewDraft = () => {
+    setReviewDraft({
+      name: "",
+      role: "",
+      quote: "",
+      rating: 5,
+      service: "amazon",
+      project: "",
+      ctaLabel: "View on Amazon",
+      ctaUrl: "",
+      image: "",
+    });
+  };
+
+  const handleOpenBookModal = () => {
+    resetBookDraft();
+    setActiveAdminModal("book");
+  };
+
+  const handleOpenCourseModal = () => {
+    resetCourseDraft();
+    setEditingCourseId(null);
+    setActiveAdminModal("course");
+  };
+
+  const handleOpenEditCourseModal = (course) => {
+    setCourseDraft({
+      title: course.title || "",
+      category: course.category || "Book Design & Publishing",
+      price: course.price || "$0",
+      status: course.status || "Draft",
+      embedUrl: course.embedUrl || "",
+      description: course.description || "",
+    });
+    setEditingCourseId(course.id);
+    setActiveAdminModal("course");
+  };
+
+  const handleOpenPortfolioModal = () => {
+    resetPortfolioDraft();
+    setEditingPortfolioId(null);
+    setActiveAdminModal("portfolio");
+  };
+
+  const handleOpenEditPortfolioModal = (project) => {
+    setPortfolioDraft({
+      title: project.title || "",
+      category: project.category || "children",
+      image: project.image || "03",
+      client: project.client || "",
+      status: project.status || "Draft",
+      embedUrl: project.embedUrl || "",
+      description: project.description || "",
+    });
+    setEditingPortfolioId(project.id);
+    setActiveAdminModal("portfolio");
+  };
+
+  const handleOpenReviewModal = () => {
+    resetReviewDraft();
+    setEditingReviewId(null);
+    setActiveAdminModal("review");
+  };
+
+  const handleOpenEditReviewModal = (review) => {
+    setReviewDraft({
+      name: review.name || "",
+      role: review.role || "",
+      quote: review.quote || "",
+      rating: review.rating || 5,
+      service: review.service || "amazon",
+      project: review.project || "",
+      ctaLabel: review.ctaLabel || "View on Amazon",
+      ctaUrl: review.ctaUrl || "",
+      image: review.image || "",
+    });
+    setEditingReviewId(review.id);
+    setActiveAdminModal("review");
+  };
+
+  const handleOpenHighlightModal = () => {
+    setHighlightDraft("");
+    setEditingHighlightIndex(null);
+    setActiveAdminModal("highlight");
+  };
+
+  const handleOpenEditHighlightModal = (index) => {
+    setHighlightDraft(adminHighlights[index] || "");
+    setEditingHighlightIndex(index);
+    setActiveAdminModal("highlight");
+  };
+
+  const handleAddProduct = (event) => {
+    event.preventDefault();
+    const nextId = adminProducts.reduce((highest, product) => Math.max(highest, Number(product.id) || 0), 0) + 1;
+    const title = bookDraft.title.trim() || `New Book ${nextId}`;
+    setAdminProducts((current) => [
+      {
+        id: nextId,
+        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `new-book-${nextId}`,
+        title,
+        subtitle: bookDraft.description.trim() || "Draft product waiting for details",
+        category: "guides",
+        category_label: bookDraft.category_label.trim() || "Draft book",
+        author: bookDraft.author.trim() || "Danajet BookLab",
+        price: bookDraft.price.trim().replace("$", "") || "0.00",
+        currency: "USD",
+        rating: 0,
+        review_count: 0,
+        inventory: Number(bookDraft.inventory) || 0,
+        is_featured: false,
+        cover: "orange",
+        accent: "#000000",
+        amazonUrl: bookDraft.amazonUrl,
+      },
+      ...current,
+    ]);
+    setActiveAdminModal(null);
+    showAdminNotice(`${title} added locally.`);
+  };
+
+  const handleDeleteProduct = (id) => {
+    setAdminProducts((current) => current.filter((product) => product.id !== id));
+    showAdminNotice("Book removed from the local admin list.");
+  };
+
+  const handleToggleFeaturedProduct = (id) => {
+    setAdminProducts((current) => current.map((product) => (
+      product.id === id ? { ...product, is_featured: !product.is_featured } : product
+    )));
+    showAdminNotice("Book featured status changed locally.");
+  };
+
+  const handleAddCourse = (event) => {
+    event.preventDefault();
+    const title = courseDraft.title.trim() || "New Course Draft";
+    if (editingCourseId) {
+      setAdminCourses((current) => current.map((course) => (
+        course.id === editingCourseId
+          ? {
+              ...course,
+              title,
+              category: courseDraft.category,
+              price: courseDraft.price.trim() || "$0",
+              status: courseDraft.status,
+              embedUrl: courseDraft.embedUrl,
+              description: courseDraft.description,
+            }
+          : course
+      )));
+      setActiveAdminModal(null);
+      setEditingCourseId(null);
+      showAdminNotice(`${title} updated locally.`);
+      return;
+    }
+
+    const id = `course-draft-${Date.now()}`;
+    setAdminCourses((current) => [{
+      id,
+      title,
+      category: courseDraft.category,
+      price: courseDraft.price.trim() || "$0",
+      status: courseDraft.status,
+      embedUrl: courseDraft.embedUrl,
+      description: courseDraft.description,
+    }, ...current]);
+    setActiveAdminModal(null);
+    showAdminNotice(`${title} added locally.`);
+  };
+
+  const handleDeleteCourse = (id) => {
+    setAdminCourses((current) => current.filter((course) => course.id !== id));
+    showAdminNotice("Course removed locally.");
+  };
+
+  const handleToggleCourseStatus = (id) => {
+    const statuses = ["Draft", "Coming soon", "Published"];
+    setAdminCourses((current) => current.map((course) => {
+      if (course.id !== id) return course;
+      const nextStatus = statuses[(statuses.indexOf(course.status) + 1) % statuses.length];
+      return { ...course, status: nextStatus };
+    }));
+    showAdminNotice("Course status changed locally.");
+  };
+
+  const handleSavePortfolioItem = (event) => {
+    event.preventDefault();
+    const title = portfolioDraft.title.trim() || "New Portfolio Draft";
+    const savedItem = {
+      title,
+      category: portfolioDraft.category,
+      image: portfolioDraft.image.trim().replace(/^page-/i, "").replace(/\.jpg$/i, "") || "03",
+      client: portfolioDraft.client.trim(),
+      status: portfolioDraft.status,
+      embedUrl: portfolioDraft.embedUrl.trim(),
+      description: portfolioDraft.description.trim(),
+    };
+
+    if (editingPortfolioId) {
+      setAdminPortfolioItems((current) => current.map((project) => (
+        project.id === editingPortfolioId ? { ...project, ...savedItem } : project
+      )));
+      setActiveAdminModal(null);
+      setEditingPortfolioId(null);
+      showAdminNotice(`${title} updated locally.`);
+      return;
+    }
+
+    setAdminPortfolioItems((current) => [{ id: `portfolio-draft-${Date.now()}`, ...savedItem }, ...current]);
+    setActiveAdminModal(null);
+    showAdminNotice(`${title} added locally.`);
+  };
+
+  const handleDeletePortfolioItem = (id) => {
+    setAdminPortfolioItems((current) => current.filter((project) => project.id !== id));
+    showAdminNotice("Portfolio item removed locally.");
+  };
+
+  const handleSaveReview = (event) => {
+    event.preventDefault();
+    const name = reviewDraft.name.trim() || "New Reviewer";
+    const savedReview = {
+      name,
+      role: reviewDraft.role.trim() || "Client Role",
+      quote: reviewDraft.quote.trim() || "Draft testimonial text waiting for client approval.",
+      rating: Math.min(5, Math.max(1, Number(reviewDraft.rating) || 5)),
+      service: reviewDraft.service,
+      project: reviewDraft.project.trim(),
+      ctaLabel: reviewDraft.ctaLabel.trim() || "View Project",
+      ctaUrl: reviewDraft.ctaUrl.trim(),
+      image: reviewDraft.image.trim(),
+    };
+
+    if (editingReviewId) {
+      setAdminReviews((current) => current.map((review) => (
+        review.id === editingReviewId ? { ...review, ...savedReview } : review
+      )));
+      setActiveAdminModal(null);
+      setEditingReviewId(null);
+      showAdminNotice(`${name}'s review updated locally.`);
+      return;
+    }
+
+    setAdminReviews((current) => [{ id: `review-draft-${Date.now()}`, ...savedReview }, ...current]);
+    setActiveAdminModal(null);
+    showAdminNotice(`${name}'s review added locally.`);
+  };
+
+  const handleDeleteReview = (id) => {
+    setAdminReviews((current) => current.filter((review) => review.id !== id));
+    showAdminNotice("Review removed locally.");
+  };
+
+  const handleCycleRequestStatus = (name) => {
+    const statuses = ["New", "Reviewing", "Quoted", "Contacted", "Closed"];
+    setAdminRequests((current) => current.map((request) => {
+      if (request.name !== name) return request;
+      const nextStatus = statuses[(statuses.indexOf(request.status) + 1) % statuses.length];
+      return { ...request, status: nextStatus };
+    }));
+    showAdminNotice("Request status changed locally.");
+  };
+
+  const handleDownloadRequest = (request) => {
+    downloadAdminReport(
+      `${request.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-request.txt`,
+      `Danajet Project Request\n\nClient: ${request.name}\nService: ${request.service}\nBudget: ${request.budget}\nStage: ${request.stage}\nStatus: ${request.status}\nDate: ${request.date}\n`
+    );
+    showAdminNotice(`Report downloaded for ${request.name}.`);
+  };
+
+  const handleDownloadAllRequests = () => {
+    downloadAdminReport(
+      "danajet-project-requests-report.txt",
+      adminRequests.map((request) => `${request.date} | ${request.name} | ${request.service} | ${request.budget} | ${request.stage} | ${request.status}`).join("\n")
+    );
+    showAdminNotice("All project requests report downloaded.");
+  };
+
+  const handleSaveHighlight = (event) => {
+    event.preventDefault();
+    const value = highlightDraft.trim() || "New Featured Work";
+
+    if (editingHighlightIndex !== null) {
+      setAdminHighlights((current) => current.map((item, itemIndex) => (itemIndex === editingHighlightIndex ? value : item)));
+      setActiveAdminModal(null);
+      setEditingHighlightIndex(null);
+      showAdminNotice("Featured work item updated locally.");
+      return;
+    }
+
+    setAdminHighlights((current) => [...current, value]);
+    setActiveAdminModal(null);
+    showAdminNotice("Featured work item added locally.");
+  };
+
+  const handleDeleteHighlight = (index) => {
+    setAdminHighlights((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    showAdminNotice("Featured work item removed locally.");
+  };
+
+  const handleUpdateSetting = (key, value) => {
+    setAdminSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const renderAdminPanel = () => {
+    if (activeAdminSection === "books") return <AdminBooksPanel products={adminProducts} onAddProduct={handleOpenBookModal} onDeleteProduct={handleDeleteProduct} onToggleFeatured={handleToggleFeaturedProduct} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "courses") return <AdminCoursesPanel courses={adminCourses} onAddCourse={handleOpenCourseModal} onEditCourse={handleOpenEditCourseModal} onDeleteCourse={handleDeleteCourse} onToggleCourseStatus={handleToggleCourseStatus} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "portfolio") return <AdminPortfolioPanel portfolioItems={adminPortfolioItems} onAddPortfolioItem={handleOpenPortfolioModal} onEditPortfolioItem={handleOpenEditPortfolioModal} onDeletePortfolioItem={handleDeletePortfolioItem} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "reviews") return <AdminReviewsPanel reviews={adminReviews} onAddReview={handleOpenReviewModal} onEditReview={handleOpenEditReviewModal} onDeleteReview={handleDeleteReview} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "requests") return <AdminRequestsPanel requests={adminRequests} onCycleRequestStatus={handleCycleRequestStatus} onDownloadRequest={handleDownloadRequest} onDownloadAllRequests={handleDownloadAllRequests} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "featured") return <AdminFeaturedPanel highlights={adminHighlights} onAddHighlight={handleOpenHighlightModal} onEditHighlight={handleOpenEditHighlightModal} onDeleteHighlight={handleDeleteHighlight} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "settings") return <AdminSettingsPanel settings={adminSettings} onUpdateSetting={handleUpdateSetting} onSaveSettings={() => showAdminNotice("Settings draft saved locally.")} />;
+
+    return (
+      <>
+        <div className="admin-metrics">
+          <AdminMetricCard icon={ShoppingBag} value={adminProducts.length} label="Shop products" copy="Books ready for catalog control" />
+          <AdminMetricCard icon={MonitorPlay} value={adminCourses.length} label="Courses & tutorials" copy="Waitlist and embed-ready items" />
+          <AdminMetricCard icon={ImageIcon} value={adminPortfolioItems.length} label="Portfolio items" copy="Grouped by service category" />
+          <AdminMetricCard icon={Inbox} value={adminRequests.length} label="Project requests" copy="New submissions mock inbox" />
+        </div>
+        <div className="admin-dashboard-grid">
+          <AdminRequestsPanel requests={adminRequests} onCycleRequestStatus={handleCycleRequestStatus} onDownloadRequest={handleDownloadRequest} onDownloadAllRequests={handleDownloadAllRequests} query={normalizedAdminSearch} />
+          <AdminFeaturedPanel highlights={adminHighlights} onAddHighlight={handleOpenHighlightModal} onEditHighlight={handleOpenEditHighlightModal} onDeleteHighlight={handleDeleteHighlight} query={normalizedAdminSearch} />
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className={`admin-page ${isSidebarCollapsed ? "admin-sidebar-collapsed" : ""}`}>
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar-top">
+          <BrandMark />
+          <button
+            className="admin-sidebar-toggle"
+            type="button"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            aria-label={isSidebarCollapsed ? "Expand admin sidebar" : "Collapse admin sidebar"}
+            aria-expanded={!isSidebarCollapsed}
+          >
+            <Menu size={18} />
+          </button>
+        </div>
+        <nav aria-label="Admin dashboard navigation">
+          {adminNavItems.map(({ id, label, icon: Icon }) => (
+            <button
+              className={activeAdminSection === id ? "is-active" : ""}
+              type="button"
+              onClick={() => setActiveAdminSection(id)}
+              key={id}
+            >
+              <Icon size={18} /> <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="admin-sidebar-note">
+          <strong>Django REST ready</strong>
+          <span>Frontend mockup only. No backend writes yet.</span>
+        </div>
+      </aside>
+      <main className="admin-main">
+        <header className="admin-topbar">
+          <div>
+            <p>Danajet Admin</p>
+            <h1>Website control dashboard</h1>
+          </div>
+          <div className="admin-topbar-actions">
+            <label><Search size={17} /><input value={adminSearch} onChange={(event) => setAdminSearch(event.target.value)} placeholder="Search content, requests, clients..." /></label>
+            <a href="/" target="_blank" rel="noreferrer"><Eye size={16} /> View Site</a>
+          </div>
+        </header>
+        <div className="admin-notice" role="status"><ClipboardList size={16} /> {adminNotice}</div>
+        {renderAdminPanel()}
+      </main>
+      {activeAdminModal === "book" && (
+        <AdminModal
+          eyebrow="Shop manager"
+          title="Add new book"
+          onClose={() => setActiveAdminModal(null)}
+          footer={(
+            <>
+              <button type="button" onClick={() => setActiveAdminModal(null)}>Cancel</button>
+              <button type="submit" form="admin-book-form"><Save size={16} /> Add Book</button>
+            </>
+          )}
+        >
+          <form className="admin-modal-form" id="admin-book-form" onSubmit={handleAddProduct}>
+            <label>Book Title<input value={bookDraft.title} onChange={(event) => setBookDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="Little Wings, Big Dreams" autoFocus /></label>
+            <label>Author / Brand<input value={bookDraft.author} onChange={(event) => setBookDraft((draft) => ({ ...draft, author: event.target.value }))} placeholder="Daniel the Booksmith" /></label>
+            <label>Category<input value={bookDraft.category_label} onChange={(event) => setBookDraft((draft) => ({ ...draft, category_label: event.target.value }))} placeholder="Children's Book" /></label>
+            <label>Price<input value={bookDraft.price} onChange={(event) => setBookDraft((draft) => ({ ...draft, price: event.target.value }))} placeholder="14.99" /></label>
+            <label>Inventory<input value={bookDraft.inventory} onChange={(event) => setBookDraft((draft) => ({ ...draft, inventory: event.target.value }))} placeholder="25" /></label>
+            <label>Amazon / Store Link<input value={bookDraft.amazonUrl} onChange={(event) => setBookDraft((draft) => ({ ...draft, amazonUrl: event.target.value }))} placeholder="https://..." /></label>
+            <label className="admin-modal-wide">Short Description<textarea value={bookDraft.description} onChange={(event) => setBookDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Describe the book for the shop page." /></label>
+            <div className="admin-upload-box"><Upload size={20} /><strong>Upload cover or product images</strong><span>Frontend placeholder for Django media upload</span></div>
+          </form>
+        </AdminModal>
+      )}
+      {activeAdminModal === "course" && (
+        <AdminModal
+          eyebrow="Academy manager"
+          title={editingCourseId ? "Edit course or tutorial" : "Add course or tutorial"}
+          onClose={() => {
+            setActiveAdminModal(null);
+            setEditingCourseId(null);
+          }}
+          footer={(
+            <>
+              <button type="button" onClick={() => {
+                setActiveAdminModal(null);
+                setEditingCourseId(null);
+              }}>Cancel</button>
+              <button type="submit" form="admin-course-form"><Save size={16} /> {editingCourseId ? "Save Changes" : "Add Course"}</button>
+            </>
+          )}
+        >
+          <form className="admin-modal-form" id="admin-course-form" onSubmit={handleAddCourse}>
+            <label>Course Title<input value={courseDraft.title} onChange={(event) => setCourseDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="Book Idea Blueprint" autoFocus /></label>
+            <label>Category<select value={courseDraft.category} onChange={(event) => setCourseDraft((draft) => ({ ...draft, category: event.target.value }))}>{courseCategories.map((category) => <option value={category.title} key={category.title}>{category.title}</option>)}</select></label>
+            <label>Price<input value={courseDraft.price} onChange={(event) => setCourseDraft((draft) => ({ ...draft, price: event.target.value }))} placeholder="$0" /></label>
+            <label>Status<select value={courseDraft.status} onChange={(event) => setCourseDraft((draft) => ({ ...draft, status: event.target.value }))}><option>Draft</option><option>Coming soon</option><option>Published</option></select></label>
+            <label className="admin-modal-wide">Embedded Link<input value={courseDraft.embedUrl} onChange={(event) => setCourseDraft((draft) => ({ ...draft, embedUrl: event.target.value }))} placeholder="YouTube, Vimeo, Canva, Gumroad, etc." /></label>
+            <label className="admin-modal-wide">Course Description<textarea value={courseDraft.description} onChange={(event) => setCourseDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="What will students learn?" /></label>
+            <div className="admin-upload-box"><Upload size={20} /><strong>Upload thumbnail or course files</strong><span>Frontend placeholder for Django media upload</span></div>
+          </form>
+        </AdminModal>
+      )}
+      {activeAdminModal === "portfolio" && (
+        <AdminModal
+          eyebrow="Portfolio manager"
+          title={editingPortfolioId ? "Edit portfolio item" : "Add portfolio item"}
+          onClose={() => {
+            setActiveAdminModal(null);
+            setEditingPortfolioId(null);
+          }}
+          footer={(
+            <>
+              <button type="button" onClick={() => {
+                setActiveAdminModal(null);
+                setEditingPortfolioId(null);
+              }}>Cancel</button>
+              <button type="submit" form="admin-portfolio-form"><Save size={16} /> {editingPortfolioId ? "Save Changes" : "Add Portfolio"}</button>
+            </>
+          )}
+        >
+          <form className="admin-modal-form" id="admin-portfolio-form" onSubmit={handleSavePortfolioItem}>
+            <label>Project Title<input value={portfolioDraft.title} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="Children's Book Cover Collection" autoFocus /></label>
+            <label>Category<select value={portfolioDraft.category} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, category: event.target.value }))}>{portfolioCategories.filter((category) => category.id !== "all").map((category) => <option value={category.id} key={category.id}>{category.label}</option>)}</select></label>
+            <label>Image Number<input value={portfolioDraft.image} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, image: event.target.value }))} placeholder="03" /></label>
+            <label>Client / Brand<input value={portfolioDraft.client} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, client: event.target.value }))} placeholder="Tangie Cokes" /></label>
+            <label>Status<select value={portfolioDraft.status} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, status: event.target.value }))}><option>Draft</option><option>Visible</option><option>Featured</option><option>Archived</option></select></label>
+            <label>Embedded / Project Link<input value={portfolioDraft.embedUrl} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, embedUrl: event.target.value }))} placeholder="Amazon, Canva, YouTube, Behance, etc." /></label>
+            <label className="admin-modal-wide">Project Description<textarea value={portfolioDraft.description} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Add project notes, deliverables, client instructions, or case study details." /></label>
+            <div className="admin-upload-box"><Upload size={20} /><strong>Upload portfolio image or files</strong><span>Frontend placeholder for Django media upload</span></div>
+          </form>
+        </AdminModal>
+      )}
+      {activeAdminModal === "review" && (
+        <AdminModal
+          eyebrow="Social proof"
+          title={editingReviewId ? "Edit review" : "Add review"}
+          onClose={() => {
+            setActiveAdminModal(null);
+            setEditingReviewId(null);
+          }}
+          footer={(
+            <>
+              <button type="button" onClick={() => {
+                setActiveAdminModal(null);
+                setEditingReviewId(null);
+              }}>Cancel</button>
+              <button type="submit" form="admin-review-form"><Save size={16} /> {editingReviewId ? "Save Changes" : "Add Review"}</button>
+            </>
+          )}
+        >
+          <form className="admin-modal-form" id="admin-review-form" onSubmit={handleSaveReview}>
+            <label>Reviewer Name<input value={reviewDraft.name} onChange={(event) => setReviewDraft((draft) => ({ ...draft, name: event.target.value }))} placeholder="Tangie Cokes" autoFocus /></label>
+            <label>Role / Title<input value={reviewDraft.role} onChange={(event) => setReviewDraft((draft) => ({ ...draft, role: event.target.value }))} placeholder="Children's Book Author" /></label>
+            <label>Rating<select value={reviewDraft.rating} onChange={(event) => setReviewDraft((draft) => ({ ...draft, rating: event.target.value }))}><option value="5">5 Stars</option><option value="4">4 Stars</option><option value="3">3 Stars</option><option value="2">2 Stars</option><option value="1">1 Star</option></select></label>
+            <label>Button Type<select value={reviewDraft.service} onChange={(event) => setReviewDraft((draft) => ({ ...draft, service: event.target.value }))}><option value="amazon">Amazon</option><option value="canva">Canva</option><option value="website">Website</option></select></label>
+            <label>Button Label<input value={reviewDraft.ctaLabel} onChange={(event) => setReviewDraft((draft) => ({ ...draft, ctaLabel: event.target.value }))} placeholder="View on Amazon" /></label>
+            <label>Button Link<input value={reviewDraft.ctaUrl} onChange={(event) => setReviewDraft((draft) => ({ ...draft, ctaUrl: event.target.value }))} placeholder="https://..." /></label>
+            <label>Project Name<input value={reviewDraft.project} onChange={(event) => setReviewDraft((draft) => ({ ...draft, project: event.target.value }))} placeholder="Children's book project" /></label>
+            <label>Profile Image Path<input value={reviewDraft.image} onChange={(event) => setReviewDraft((draft) => ({ ...draft, image: event.target.value }))} placeholder="/assets/reviews/name.jpg" /></label>
+            <label className="admin-modal-wide">Review Text<textarea value={reviewDraft.quote} onChange={(event) => setReviewDraft((draft) => ({ ...draft, quote: event.target.value }))} placeholder="Paste the client's testimonial here." /></label>
+            <div className="admin-upload-box"><Upload size={20} /><strong>Upload reviewer headshot</strong><span>Frontend placeholder for Django media upload</span></div>
+          </form>
+        </AdminModal>
+      )}
+      {activeAdminModal === "highlight" && (
+        <AdminModal
+          eyebrow="Homepage controls"
+          title={editingHighlightIndex !== null ? "Edit featured work" : "Add featured work"}
+          onClose={() => {
+            setActiveAdminModal(null);
+            setEditingHighlightIndex(null);
+          }}
+          footer={(
+            <>
+              <button type="button" onClick={() => {
+                setActiveAdminModal(null);
+                setEditingHighlightIndex(null);
+              }}>Cancel</button>
+              <button type="submit" form="admin-highlight-form"><Save size={16} /> {editingHighlightIndex !== null ? "Save Changes" : "Add Highlight"}</button>
+            </>
+          )}
+        >
+          <form className="admin-modal-form" id="admin-highlight-form" onSubmit={handleSaveHighlight}>
+            <label className="admin-modal-wide">Featured Work Title<input value={highlightDraft} onChange={(event) => setHighlightDraft(event.target.value)} placeholder="MISA Educational Series" autoFocus /></label>
+            <div className="admin-upload-box"><Upload size={20} /><strong>Optional supporting image</strong><span>Frontend placeholder for Django media upload</span></div>
+          </form>
+        </AdminModal>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   const productMatch = path.match(/^\/shop\/([^/]+)$/);
@@ -1828,6 +2788,10 @@ function App() {
   if (path === "/reviews") {
     document.title = "Client Reviews | Danajet";
     return <ReviewsPage />;
+  }
+  if (path === "/admin") {
+    document.title = "Admin Dashboard | Danajet";
+    return <AdminDashboardPage />;
   }
 
   document.title = "Danajet | Helping Authors Make Their Books Soar";
