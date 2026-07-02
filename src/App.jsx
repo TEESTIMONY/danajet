@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight as LucideArrowRight,
   BarChart3,
@@ -2298,7 +2298,9 @@ function AdminModal({ title, eyebrow, children, onClose, footer }) {
 
 function AdminDashboardPage() {
   const [activeAdminSection, setActiveAdminSection] = useState("overview");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const sidebarCloseTimer = useRef(null);
   const [activeAdminModal, setActiveAdminModal] = useState(null);
   const [editingCourseId, setEditingCourseId] = useState(null);
   const [editingPortfolioId, setEditingPortfolioId] = useState(null);
@@ -2421,7 +2423,22 @@ function AdminDashboardPage() {
   const [highlightDraft, setHighlightDraft] = useState("");
 
   const normalizedAdminSearch = adminSearch.trim().toLowerCase();
+  const isSidebarOpen = !isSidebarCollapsed || isSidebarHovered;
   const showAdminNotice = (message) => setAdminNotice(message);
+  const clearSidebarCloseTimer = () => {
+    if (sidebarCloseTimer.current) {
+      clearTimeout(sidebarCloseTimer.current);
+      sidebarCloseTimer.current = null;
+    }
+  };
+  const closeSidebarAfterDelay = () => {
+    clearSidebarCloseTimer();
+    sidebarCloseTimer.current = setTimeout(() => {
+      setIsSidebarCollapsed(true);
+      setIsSidebarHovered(false);
+      sidebarCloseTimer.current = null;
+    }, 5000);
+  };
   const makeAdminId = (prefix) => `${prefix}-${Date.now()}`;
   const updateAdminCollectionItem = (setter, id, key, value) => {
     setter((current) => current.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
@@ -2434,6 +2451,8 @@ function AdminDashboardPage() {
     setter((current) => [{ id: makeAdminId(prefix), ...item }, ...current]);
     showAdminNotice(`${label} added locally.`);
   };
+
+  useEffect(() => () => clearSidebarCloseTimer(), []);
 
   const resetBookDraft = () => {
     setBookDraft({
@@ -2997,16 +3016,32 @@ function AdminDashboardPage() {
   };
 
   return (
-    <div className={`admin-page ${isSidebarCollapsed ? "admin-sidebar-collapsed" : ""}`}>
-      <aside className="admin-sidebar">
+    <div className={`admin-page ${isSidebarOpen ? "admin-sidebar-open" : "admin-sidebar-collapsed"}`}>
+      <aside
+        className="admin-sidebar"
+        onMouseEnter={() => {
+          clearSidebarCloseTimer();
+          if (isSidebarCollapsed) setIsSidebarHovered(true);
+        }}
+        onMouseLeave={closeSidebarAfterDelay}
+        onFocus={() => {
+          clearSidebarCloseTimer();
+          if (isSidebarCollapsed) setIsSidebarHovered(true);
+        }}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="admin-sidebar-top">
           <BrandMark />
           <button
             className="admin-sidebar-toggle"
             type="button"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            onClick={() => {
+              clearSidebarCloseTimer();
+              setIsSidebarCollapsed(!isSidebarCollapsed);
+              setIsSidebarHovered(false);
+            }}
             aria-label={isSidebarCollapsed ? "Expand admin sidebar" : "Collapse admin sidebar"}
-            aria-expanded={!isSidebarCollapsed}
+            aria-expanded={isSidebarOpen}
           >
             <Menu size={18} />
           </button>
@@ -3028,7 +3063,10 @@ function AdminDashboardPage() {
           <span>Frontend mockup only. No backend writes yet.</span>
         </div>
       </aside>
-      <main className="admin-main">
+      <main
+        className="admin-main"
+        onClick={closeSidebarAfterDelay}
+      >
         <header className="admin-topbar">
           <div>
             <p>Danajet Admin</p>
