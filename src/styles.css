@@ -1802,6 +1802,7 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
   text-transform: uppercase;
 }
 .admin-editor-grid input,
+.admin-editor-grid select,
 .admin-editor-grid textarea {
   width: 100%;
   min-height: 43px;
@@ -1819,6 +1820,76 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
 }
 .admin-wide-field {
   grid-column: span 2;
+}
+.admin-editor-grid-balanced {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.admin-control-list {
+  display: grid;
+  gap: 14px;
+}
+.admin-control-item {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #dedbd5;
+  background: #fffdf9;
+}
+.admin-control-item-top {
+  display: grid;
+  align-content: space-between;
+  gap: 10px;
+}
+.admin-control-item-top span {
+  width: 42px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: #171717;
+  color: white;
+  font-size: 11px;
+  font-weight: 900;
+}
+.admin-control-item-top button {
+  width: 42px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dedbd5;
+  background: white;
+  color: #171717;
+  cursor: pointer;
+}
+.admin-control-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+}
+.admin-control-fields label {
+  display: grid;
+  gap: 7px;
+  color: #686868;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.admin-control-fields input,
+.admin-control-fields select,
+.admin-control-fields textarea {
+  width: 100%;
+  min-height: 41px;
+  border: 1px solid #dedbd5;
+  padding: 0 11px;
+  background: white;
+  color: #171717;
+  font: 12px var(--body);
+  text-transform: none;
+}
+.admin-control-fields textarea {
+  min-height: 86px;
+  padding: 10px 11px;
+  resize: vertical;
 }
 .admin-upload-box {
   min-height: 120px;
@@ -1927,7 +1998,8 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
 .admin-row-actions button svg,
 .admin-review-row button svg,
 .admin-feature-list button svg,
-.admin-portfolio-card > span button svg {
+.admin-portfolio-card > span button svg,
+.admin-control-item-top button svg {
   width: 15px;
   height: 15px;
   display: block;

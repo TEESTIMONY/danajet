@@ -1814,12 +1814,23 @@ function ReviewsPage() {
 
 const adminNavItems = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "hero", label: "Homepage Hero", icon: Sparkles },
+  { id: "navigation", label: "Navigation", icon: Menu },
+  { id: "about-control", label: "About Page", icon: Quote },
+  { id: "services-control", label: "Services", icon: PackageCheck },
   { id: "books", label: "Books & Shop", icon: ShoppingBag },
+  { id: "shop-categories", label: "Shop Categories", icon: Boxes },
   { id: "courses", label: "Courses", icon: MonitorPlay },
+  { id: "course-categories", label: "Course Categories", icon: Layers3 },
   { id: "portfolio", label: "Portfolio", icon: ImageIcon },
+  { id: "brands-control", label: "Brands & Media", icon: Play },
   { id: "reviews", label: "Reviews", icon: Users },
   { id: "requests", label: "Project Requests", icon: Inbox },
+  { id: "form-options", label: "Request Form", icon: ClipboardList },
   { id: "featured", label: "Featured Work", icon: Star },
+  { id: "cta-control", label: "CTA Sections", icon: Send },
+  { id: "contact-control", label: "Contact/Footer", icon: MessageCircle },
+  { id: "media-library", label: "Media Library", icon: Upload },
   { id: "settings", label: "Site Controls", icon: Settings },
 ];
 
@@ -1836,6 +1847,62 @@ const adminApiMap = [
   "PATCH /api/admin/portfolio/:id/",
   "GET /api/admin/project-requests/",
   "POST /api/admin/media/upload/",
+];
+
+const adminHeroDefaults = {
+  announcement: "Worked with authors, educators, and publishers worldwide.",
+  headline: "Let's make your book the next standout.",
+  subtitle: "Personal book formatting, design, and publishing support that helps your message reach more readers.",
+  primaryCta: "Start a Project",
+  primaryUrl: "/request-project",
+  secondaryCta: "Shop My Books",
+  secondaryUrl: "/shop",
+  heroImage: "/assets/hero-books-cutout.png",
+};
+
+const adminAboutDefaults = {
+  eyebrow: "About Danajet",
+  headline: "A creative ecosystem for authors, learning, media, and bold future ideas.",
+  founderBio: "Daniel helps authors transform book ideas into polished, publish-ready projects with thoughtful design, formatting, and publishing support.",
+  story: "Danajet began as a personal creative service and is growing into BookLab, Media, Academy, and future transport innovation.",
+  image: "/assets/DANAJET_ABOUT.png",
+  statOne: "100+ books supported",
+  statTwo: "Global author clients",
+  statThree: "Design, publishing, and media",
+};
+
+const adminCtaDefaults = [
+  { id: "cta-hero", title: "Start a Project", copy: "Ready to make your book soar?", button: "Request a Project", url: "/request-project", location: "Homepage hero" },
+  { id: "cta-final", title: "Your next chapter starts here", copy: "Bring your manuscript, idea, or book vision and let's shape it into something polished.", button: "Start a Project", url: "/request-project", location: "Final homepage banner" },
+  { id: "cta-shop", title: "Browse Danajet books", copy: "Storybooks, workbooks, and creator resources made with care.", button: "Shop Books", url: "/shop", location: "Shop page" },
+];
+
+const adminContactDefaults = {
+  email: "hello@danajet.com",
+  whatsapp: "+1 000 000 0000",
+  businessHours: "Monday - Friday, 9:00 AM - 5:00 PM",
+  location: "Remote, serving authors worldwide",
+  youtube: "#youtube",
+  instagram: "#instagram",
+  tiktok: "#tiktok",
+  linkedin: "#linkedin",
+  footerCopy: "Helping authors create, publish, and share professional books while building educational resources, media projects, and future innovations.",
+};
+
+const adminSiteDefaults = {
+  logo: "/assets/danajet-logo.svg",
+  favicon: "/favicon.svg",
+  primaryColor: "#ef3d0c",
+  seoTitle: "Danajet | Helping Authors Make Their Books Soar",
+  seoDescription: "Book formatting, design, publishing support, educational resources, and author services by Danajet BookLab.",
+  maintenanceMode: "Off",
+};
+
+const adminMediaDefaults = [
+  { id: "media-hero", title: "Hero cutout", type: "Image", path: "/assets/hero-books-cutout.png", usage: "Homepage hero" },
+  { id: "media-about", title: "Danajet about image", type: "Image", path: "/assets/DANAJET_ABOUT.png", usage: "About page" },
+  { id: "media-sticker", title: "Sticker tile", type: "Image", path: "/assets/sticker.png", usage: "Brand section background" },
+  { id: "media-review", title: "Reviewer headshots", type: "Folder", path: "/assets/reviews/", usage: "Reviews" },
 ];
 
 function AdminMetricCard({ icon: Icon, label, value, copy }) {
@@ -2087,13 +2154,109 @@ function AdminFeaturedPanel({ highlights, onAddHighlight, onEditHighlight, onDel
   );
 }
 
+function AdminTextControlPanel({ eyebrow, title, copy, values, fields, onUpdate, onSave }) {
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow={eyebrow}
+        title={title}
+        copy={copy}
+        action={<AdminActionButton icon={Save} onClick={onSave}>Save Draft</AdminActionButton>}
+      />
+      <div className="admin-editor-grid admin-editor-grid-balanced">
+        {fields.map((field) => (
+          <label className={field.wide ? "admin-wide-field" : ""} key={field.key}>
+            {field.label}
+            {field.type === "textarea" ? (
+              <textarea value={values[field.key] || ""} onChange={(event) => onUpdate(field.key, event.target.value)} />
+            ) : field.type === "select" ? (
+              <select value={values[field.key] || ""} onChange={(event) => onUpdate(field.key, event.target.value)}>
+                {field.options.map((option) => <option value={option} key={option}>{option}</option>)}
+              </select>
+            ) : (
+              <input value={values[field.key] || ""} onChange={(event) => onUpdate(field.key, event.target.value)} />
+            )}
+          </label>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AdminCollectionPanel({ eyebrow, title, copy, items, fields, query, onAdd, onUpdate, onDelete, addLabel = "Add Item" }) {
+  const visibleItems = items.filter((item) =>
+    Object.values(item).join(" ").toLowerCase().includes(query)
+  );
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow={eyebrow}
+        title={title}
+        copy={copy}
+        action={<AdminActionButton onClick={onAdd}>{addLabel}</AdminActionButton>}
+      />
+      <div className="admin-control-list">
+        {visibleItems.map((item, index) => (
+          <article className="admin-control-item" key={item.id || `${title}-${index}`}>
+            <div className="admin-control-item-top">
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <button type="button" onClick={() => onDelete(item.id)} aria-label={`Delete ${item.title || item.label || item.name || "item"}`}><Trash2 size={15} /></button>
+            </div>
+            <div className="admin-control-fields">
+              {fields.map((field) => (
+                <label className={field.wide ? "admin-wide-field" : ""} key={field.key}>
+                  {field.label}
+                  {field.type === "textarea" ? (
+                    <textarea value={item[field.key] || ""} onChange={(event) => onUpdate(item.id, field.key, event.target.value)} />
+                  ) : field.type === "select" ? (
+                    <select value={item[field.key] || ""} onChange={(event) => onUpdate(item.id, field.key, event.target.value)}>
+                      {field.options.map((option) => <option value={option} key={option}>{option}</option>)}
+                    </select>
+                  ) : (
+                    <input value={item[field.key] || ""} onChange={(event) => onUpdate(item.id, field.key, event.target.value)} />
+                  )}
+                </label>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+      {visibleItems.length === 0 && <AdminEmptyState copy="No items match your current search." />}
+    </section>
+  );
+}
+
+function AdminRequestFormOptionsPanel({ options, onUpdate, onSave }) {
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="Lead form controls"
+        title="Request form options and messages"
+        copy="Edit checkboxes, dropdown options, confidentiality copy, and the thank-you message that appears after submission."
+        action={<AdminActionButton icon={Save} onClick={onSave}>Save Draft</AdminActionButton>}
+      />
+      <div className="admin-editor-grid admin-editor-grid-balanced">
+        <label className="admin-wide-field">Service Checkboxes<textarea value={options.services} onChange={(event) => onUpdate("services", event.target.value)} /></label>
+        <label>Project Stages<textarea value={options.stages} onChange={(event) => onUpdate("stages", event.target.value)} /></label>
+        <label>Book Sizes<textarea value={options.sizes} onChange={(event) => onUpdate("sizes", event.target.value)} /></label>
+        <label>Budget Ranges<textarea value={options.budgets} onChange={(event) => onUpdate("budgets", event.target.value)} /></label>
+        <label>Timeline Options<textarea value={options.timelines} onChange={(event) => onUpdate("timelines", event.target.value)} /></label>
+        <label>Referral Sources<textarea value={options.referrals} onChange={(event) => onUpdate("referrals", event.target.value)} /></label>
+        <label className="admin-wide-field">Success Message<textarea value={options.successMessage} onChange={(event) => onUpdate("successMessage", event.target.value)} /></label>
+        <label className="admin-wide-field">Confidentiality Sentence<textarea value={options.confidentiality} onChange={(event) => onUpdate("confidentiality", event.target.value)} /></label>
+      </div>
+    </section>
+  );
+}
+
 function AdminSettingsPanel({ settings, onUpdateSetting, onSaveSettings }) {
   return (
     <section className="admin-panel">
       <AdminSectionHeader
         eyebrow="API ready"
-        title="Future Django REST API connections"
-        copy="Frontend-only for now. These cards show the backend endpoints this dashboard is designed to connect with later."
+        title="Site controls and Django REST API map"
+        copy="Frontend-only for now. Edit global site metadata, brand assets, maintenance mode, and the backend endpoints this dashboard is designed to connect with later."
         action={<AdminActionButton icon={Save} onClick={onSaveSettings}>Save Draft</AdminActionButton>}
       />
       <div className="admin-api-grid">
@@ -2104,6 +2267,12 @@ function AdminSettingsPanel({ settings, onUpdateSetting, onSaveSettings }) {
         <label>Primary CTA<input value={settings.primaryCta} onChange={(event) => onUpdateSetting("primaryCta", event.target.value)} /></label>
         <label>Amazon Store URL<input value={settings.amazonUrl} onChange={(event) => onUpdateSetting("amazonUrl", event.target.value)} /></label>
         <label>Contact Email<input value={settings.email} onChange={(event) => onUpdateSetting("email", event.target.value)} /></label>
+        <label>Logo Path<input value={settings.logo || ""} onChange={(event) => onUpdateSetting("logo", event.target.value)} /></label>
+        <label>Favicon Path<input value={settings.favicon || ""} onChange={(event) => onUpdateSetting("favicon", event.target.value)} /></label>
+        <label>Primary Brand Color<input value={settings.primaryColor || ""} onChange={(event) => onUpdateSetting("primaryColor", event.target.value)} /></label>
+        <label>Maintenance Mode<select value={settings.maintenanceMode || "Off"} onChange={(event) => onUpdateSetting("maintenanceMode", event.target.value)}><option>Off</option><option>On</option></select></label>
+        <label className="admin-wide-field">SEO Title<input value={settings.seoTitle || ""} onChange={(event) => onUpdateSetting("seoTitle", event.target.value)} /></label>
+        <label className="admin-wide-field">SEO Description<textarea value={settings.seoDescription || ""} onChange={(event) => onUpdateSetting("seoDescription", event.target.value)} /></label>
       </div>
     </section>
   );
@@ -2155,11 +2324,62 @@ function AdminDashboardPage() {
   const [adminReviews, setAdminReviews] = useState(() => testimonials.map((review, index) => ({ ...review, id: `review-${index}`, rating: 5 })));
   const [adminRequests, setAdminRequests] = useState(adminProjectRequests);
   const [adminHighlights, setAdminHighlights] = useState(featuredWorkHighlights);
+  const [adminHero, setAdminHero] = useState(adminHeroDefaults);
+  const [adminNavLinks, setAdminNavLinks] = useState(() => navItems.map((item, index) => ({
+    id: `nav-${index}`,
+    label: item.label,
+    href: item.href,
+    dropdown: Array.isArray(item.children) ? item.children.map((child) => (typeof child === "string" ? child : child.label)).join(", ") : "",
+    status: "Visible",
+  })));
+  const [adminAbout, setAdminAbout] = useState(adminAboutDefaults);
+  const [adminServiceCards, setAdminServiceCards] = useState(() => services.map((service, index) => ({
+    id: `service-${index}`,
+    title: service.title,
+    copy: service.copy,
+    price: "Custom quote",
+    status: "Available",
+  })));
+  const [adminShopCategoryItems, setAdminShopCategoryItems] = useState(() => shopCategories.map((category, index) => ({
+    id: `shop-category-${index}`,
+    label: category.label,
+    slug: category.id,
+    description: "Shop category for books and products.",
+    status: "Visible",
+  })));
+  const [adminCourseCategoryItems, setAdminCourseCategoryItems] = useState(() => courseCategories.map((category, index) => ({
+    id: `course-category-${index}`,
+    title: category.title,
+    description: `${category.items.length} courses and resources`,
+    status: "Visible",
+  })));
+  const [adminBrandSections, setAdminBrandSections] = useState(() => brands.map((brand, index) => ({
+    id: `brand-${index}`,
+    name: brand.name,
+    copy: brand.copy,
+    code: brand.code,
+    link: "/request-project",
+    status: "Visible",
+  })));
+  const [adminCtas, setAdminCtas] = useState(adminCtaDefaults);
+  const [adminContact, setAdminContact] = useState(adminContactDefaults);
+  const [adminRequestFormOptions, setAdminRequestFormOptions] = useState({
+    services: requestServiceOptions.join("\n"),
+    stages: projectStageOptions.join("\n"),
+    sizes: bookSizeOptions.join("\n"),
+    budgets: budgetOptions.join("\n"),
+    timelines: timelineOptions.join("\n"),
+    referrals: referralOptions.join("\n"),
+    successMessage: "Your Book Is Ready for Takeoff!\n\nWelcome aboard the Danajet BookLab journey.\n\nThank you for submitting your project request. I will personally review your details and contact you through your preferred method shortly.\n\nLet's make your book soar!",
+    confidentiality: "Your manuscript and project details will be treated with complete confidentiality and will never be shared with third parties.",
+  });
+  const [adminMediaLibrary, setAdminMediaLibrary] = useState(adminMediaDefaults);
   const [adminSettings, setAdminSettings] = useState({
     announcement: "Worked with authors worldwide",
     primaryCta: "Start a Project",
     amazonUrl: "https://amazon.com/",
     email: "hello@danajet.com",
+    ...adminSiteDefaults,
   });
   const [bookDraft, setBookDraft] = useState({
     title: "",
@@ -2202,6 +2422,18 @@ function AdminDashboardPage() {
 
   const normalizedAdminSearch = adminSearch.trim().toLowerCase();
   const showAdminNotice = (message) => setAdminNotice(message);
+  const makeAdminId = (prefix) => `${prefix}-${Date.now()}`;
+  const updateAdminCollectionItem = (setter, id, key, value) => {
+    setter((current) => current.map((item) => (item.id === id ? { ...item, [key]: value } : item)));
+  };
+  const deleteAdminCollectionItem = (setter, id, label = "Item") => {
+    setter((current) => current.filter((item) => item.id !== id));
+    showAdminNotice(`${label} removed locally.`);
+  };
+  const addAdminCollectionItem = (setter, prefix, item, label = "Item") => {
+    setter((current) => [{ id: makeAdminId(prefix), ...item }, ...current]);
+    showAdminNotice(`${label} added locally.`);
+  };
 
   const resetBookDraft = () => {
     setBookDraft({
@@ -2544,12 +2776,208 @@ function AdminDashboardPage() {
   };
 
   const renderAdminPanel = () => {
+    if (activeAdminSection === "hero") return (
+      <AdminTextControlPanel
+        eyebrow="Homepage controls"
+        title="Hero, announcement, and first CTAs"
+        copy="Control the first thing visitors see: announcement, headline, supporting text, CTA buttons, and hero image path."
+        values={adminHero}
+        onUpdate={(key, value) => setAdminHero((current) => ({ ...current, [key]: value }))}
+        onSave={() => showAdminNotice("Homepage hero draft saved locally.")}
+        fields={[
+          { key: "announcement", label: "Announcement", wide: true },
+          { key: "headline", label: "Headline", wide: true },
+          { key: "subtitle", label: "Subtitle", type: "textarea", wide: true },
+          { key: "primaryCta", label: "Primary CTA" },
+          { key: "primaryUrl", label: "Primary URL" },
+          { key: "secondaryCta", label: "Secondary CTA" },
+          { key: "secondaryUrl", label: "Secondary URL" },
+          { key: "heroImage", label: "Hero Image Path", wide: true },
+        ]}
+      />
+    );
+    if (activeAdminSection === "navigation") return (
+      <AdminCollectionPanel
+        eyebrow="Menu controls"
+        title="Navigation and dropdown links"
+        copy="Rename, hide, reorder later, and prepare dropdown links for backend control."
+        items={adminNavLinks}
+        query={normalizedAdminSearch}
+        addLabel="Add Menu Item"
+        onAdd={() => addAdminCollectionItem(setAdminNavLinks, "nav", { label: "New Link", href: "/", dropdown: "", status: "Visible" }, "Menu item")}
+        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminNavLinks, id, key, value)}
+        onDelete={(id) => deleteAdminCollectionItem(setAdminNavLinks, id, "Menu item")}
+        fields={[
+          { key: "label", label: "Menu Label" },
+          { key: "href", label: "Link URL" },
+          { key: "dropdown", label: "Dropdown Items", wide: true },
+          { key: "status", label: "Status", type: "select", options: ["Visible", "Hidden"] },
+        ]}
+      />
+    );
+    if (activeAdminSection === "about-control") return (
+      <AdminTextControlPanel
+        eyebrow="About page"
+        title="Founder story and page content"
+        copy="Edit the About page heading, founder bio, story copy, stats, and image path."
+        values={adminAbout}
+        onUpdate={(key, value) => setAdminAbout((current) => ({ ...current, [key]: value }))}
+        onSave={() => showAdminNotice("About page draft saved locally.")}
+        fields={[
+          { key: "eyebrow", label: "Eyebrow" },
+          { key: "image", label: "About Image Path" },
+          { key: "headline", label: "Headline", wide: true },
+          { key: "founderBio", label: "Founder Bio", type: "textarea", wide: true },
+          { key: "story", label: "Brand Story", type: "textarea", wide: true },
+          { key: "statOne", label: "Stat One" },
+          { key: "statTwo", label: "Stat Two" },
+          { key: "statThree", label: "Stat Three" },
+        ]}
+      />
+    );
+    if (activeAdminSection === "services-control") return (
+      <AdminCollectionPanel
+        eyebrow="Service controls"
+        title="Service cards, pricing, and availability"
+        copy="Add, edit, delete, price, and hide service cards before wiring them to Django."
+        items={adminServiceCards}
+        query={normalizedAdminSearch}
+        addLabel="Add Service"
+        onAdd={() => addAdminCollectionItem(setAdminServiceCards, "service", { title: "New Service", copy: "Service description", price: "Custom quote", status: "Available" }, "Service")}
+        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminServiceCards, id, key, value)}
+        onDelete={(id) => deleteAdminCollectionItem(setAdminServiceCards, id, "Service")}
+        fields={[
+          { key: "title", label: "Service Title" },
+          { key: "price", label: "Price / Range" },
+          { key: "status", label: "Availability", type: "select", options: ["Available", "Paused", "Coming soon", "Hidden"] },
+          { key: "copy", label: "Description", type: "textarea", wide: true },
+        ]}
+      />
+    );
     if (activeAdminSection === "books") return <AdminBooksPanel products={adminProducts} onAddProduct={handleOpenBookModal} onDeleteProduct={handleDeleteProduct} onToggleFeatured={handleToggleFeaturedProduct} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "shop-categories") return (
+      <AdminCollectionPanel
+        eyebrow="Shop controls"
+        title="Book and product categories"
+        copy="Control category labels, slugs, descriptions, and visibility for the shop."
+        items={adminShopCategoryItems}
+        query={normalizedAdminSearch}
+        addLabel="Add Category"
+        onAdd={() => addAdminCollectionItem(setAdminShopCategoryItems, "shop-category", { label: "New Category", slug: "new-category", description: "Category description", status: "Visible" }, "Shop category")}
+        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminShopCategoryItems, id, key, value)}
+        onDelete={(id) => deleteAdminCollectionItem(setAdminShopCategoryItems, id, "Shop category")}
+        fields={[
+          { key: "label", label: "Category Label" },
+          { key: "slug", label: "Slug" },
+          { key: "status", label: "Status", type: "select", options: ["Visible", "Hidden"] },
+          { key: "description", label: "Description", type: "textarea", wide: true },
+        ]}
+      />
+    );
     if (activeAdminSection === "courses") return <AdminCoursesPanel courses={adminCourses} onAddCourse={handleOpenCourseModal} onEditCourse={handleOpenEditCourseModal} onDeleteCourse={handleDeleteCourse} onToggleCourseStatus={handleToggleCourseStatus} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "course-categories") return (
+      <AdminCollectionPanel
+        eyebrow="Academy controls"
+        title="Course category sections"
+        copy="Control the course groups that appear inside Courses & Tutorials."
+        items={adminCourseCategoryItems}
+        query={normalizedAdminSearch}
+        addLabel="Add Course Category"
+        onAdd={() => addAdminCollectionItem(setAdminCourseCategoryItems, "course-category", { title: "New Course Category", description: "Category description", status: "Visible" }, "Course category")}
+        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminCourseCategoryItems, id, key, value)}
+        onDelete={(id) => deleteAdminCollectionItem(setAdminCourseCategoryItems, id, "Course category")}
+        fields={[
+          { key: "title", label: "Category Title" },
+          { key: "status", label: "Status", type: "select", options: ["Visible", "Hidden"] },
+          { key: "description", label: "Description", type: "textarea", wide: true },
+        ]}
+      />
+    );
     if (activeAdminSection === "portfolio") return <AdminPortfolioPanel portfolioItems={adminPortfolioItems} onAddPortfolioItem={handleOpenPortfolioModal} onEditPortfolioItem={handleOpenEditPortfolioModal} onDeletePortfolioItem={handleDeletePortfolioItem} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "brands-control") return (
+      <AdminCollectionPanel
+        eyebrow="Brand ecosystem"
+        title="Danajet brand and media cards"
+        copy="Control BookLab, Media, Academy, Transport, and any future brand cards."
+        items={adminBrandSections}
+        query={normalizedAdminSearch}
+        addLabel="Add Brand"
+        onAdd={() => addAdminCollectionItem(setAdminBrandSections, "brand", { name: "New Brand", copy: "Brand description", code: "NB", link: "/request-project", status: "Visible" }, "Brand")}
+        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminBrandSections, id, key, value)}
+        onDelete={(id) => deleteAdminCollectionItem(setAdminBrandSections, id, "Brand")}
+        fields={[
+          { key: "name", label: "Brand Name" },
+          { key: "code", label: "Short Code" },
+          { key: "link", label: "Link URL" },
+          { key: "status", label: "Status", type: "select", options: ["Visible", "Hidden", "Coming soon"] },
+          { key: "copy", label: "Description", type: "textarea", wide: true },
+        ]}
+      />
+    );
     if (activeAdminSection === "reviews") return <AdminReviewsPanel reviews={adminReviews} onAddReview={handleOpenReviewModal} onEditReview={handleOpenEditReviewModal} onDeleteReview={handleDeleteReview} query={normalizedAdminSearch} />;
     if (activeAdminSection === "requests") return <AdminRequestsPanel requests={adminRequests} onCycleRequestStatus={handleCycleRequestStatus} onDownloadRequest={handleDownloadRequest} onDownloadAllRequests={handleDownloadAllRequests} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "form-options") return <AdminRequestFormOptionsPanel options={adminRequestFormOptions} onUpdate={(key, value) => setAdminRequestFormOptions((current) => ({ ...current, [key]: value }))} onSave={() => showAdminNotice("Request form options saved locally.")} />;
     if (activeAdminSection === "featured") return <AdminFeaturedPanel highlights={adminHighlights} onAddHighlight={handleOpenHighlightModal} onEditHighlight={handleOpenEditHighlightModal} onDeleteHighlight={handleDeleteHighlight} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "cta-control") return (
+      <AdminCollectionPanel
+        eyebrow="Conversion controls"
+        title="Reusable CTA sections"
+        copy="Control repeated call-to-action blocks across the homepage, shop, reviews, and footer."
+        items={adminCtas}
+        query={normalizedAdminSearch}
+        addLabel="Add CTA"
+        onAdd={() => addAdminCollectionItem(setAdminCtas, "cta", { title: "New CTA", copy: "CTA supporting copy", button: "Click Here", url: "/request-project", location: "New section" }, "CTA")}
+        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminCtas, id, key, value)}
+        onDelete={(id) => deleteAdminCollectionItem(setAdminCtas, id, "CTA")}
+        fields={[
+          { key: "title", label: "Title" },
+          { key: "button", label: "Button Label" },
+          { key: "url", label: "Button URL" },
+          { key: "location", label: "Location" },
+          { key: "copy", label: "Supporting Copy", type: "textarea", wide: true },
+        ]}
+      />
+    );
+    if (activeAdminSection === "contact-control") return (
+      <AdminTextControlPanel
+        eyebrow="Contact controls"
+        title="Contact details, socials, and footer"
+        copy="Edit contact channels, social links, business hours, location, and footer brand copy."
+        values={adminContact}
+        onUpdate={(key, value) => setAdminContact((current) => ({ ...current, [key]: value }))}
+        onSave={() => showAdminNotice("Contact and footer draft saved locally.")}
+        fields={[
+          { key: "email", label: "Email" },
+          { key: "whatsapp", label: "WhatsApp" },
+          { key: "businessHours", label: "Business Hours" },
+          { key: "location", label: "Location" },
+          { key: "youtube", label: "YouTube Link" },
+          { key: "instagram", label: "Instagram Link" },
+          { key: "tiktok", label: "TikTok Link" },
+          { key: "linkedin", label: "LinkedIn Link" },
+          { key: "footerCopy", label: "Footer Copy", type: "textarea", wide: true },
+        ]}
+      />
+    );
+    if (activeAdminSection === "media-library") return (
+      <AdminCollectionPanel
+        eyebrow="Assets"
+        title="Uploads and media library"
+        copy="Central image/file inventory for books, reviews, portfolio, courses, hero images, and brand assets."
+        items={adminMediaLibrary}
+        query={normalizedAdminSearch}
+        addLabel="Add Media"
+        onAdd={() => addAdminCollectionItem(setAdminMediaLibrary, "media", { title: "New Upload", type: "Image", path: "/assets/new-image.jpg", usage: "Unassigned" }, "Media item")}
+        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminMediaLibrary, id, key, value)}
+        onDelete={(id) => deleteAdminCollectionItem(setAdminMediaLibrary, id, "Media item")}
+        fields={[
+          { key: "title", label: "Asset Title" },
+          { key: "type", label: "Type", type: "select", options: ["Image", "Video", "PDF", "Folder", "Document"] },
+          { key: "path", label: "Path / URL", wide: true },
+          { key: "usage", label: "Used For", wide: true },
+        ]}
+      />
+    );
     if (activeAdminSection === "settings") return <AdminSettingsPanel settings={adminSettings} onUpdateSetting={handleUpdateSetting} onSaveSettings={() => showAdminNotice("Settings draft saved locally.")} />;
 
     return (
