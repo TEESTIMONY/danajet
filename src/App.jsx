@@ -160,11 +160,11 @@ const navItems = [
   { label: "Home", href: "/#home" },
   { label: "About", href: "/about", children: ["About Danajet", "Testimonials", "Transport"] },
   { label: "BookLab", href: "/#services", children: [{ label: "Services", href: "/#services" }, { label: "Request a Project", href: "/request-project" }] },
-  { label: "Portfolio", href: "/portfolio", children: [{ label: "View Portfolio", href: "/portfolio" }, { label: "Visit Amazon Store", href: "#amazon" }] },
+  { label: "Portfolio", href: "/portfolio", children: [{ label: "View Portfolio", href: "/portfolio" }, { label: "Shop on Amazon", href: "#amazon" }] },
   { label: "Shop", href: "/shop" },
   { label: "Academy", href: "/courses", children: ["Courses & Tutorials", "Community", "Free Resources"] },
   { label: "Media", href: "/#brands" },
-  { label: "Contact", href: "/#contact" },
+  { label: "Contact", href: "/contact" },
 ];
 
 const whatIDo = [
@@ -195,10 +195,10 @@ const whatIDo = [
 ];
 
 const brands = [
-  { icon: BookOpen, name: "BookLab", copy: "Book design, formatting & publishing", code: "BL" },
-  { icon: Play, name: "Media", copy: "Storytelling, YouTube & content", code: "ME" },
-  { icon: Layers3, name: "Academy", copy: "Courses & learning resources", code: "AC" },
-  { icon: Plane, name: "Transport", copy: "A future-facing transport vision", code: "TR" },
+  { icon: BookOpen, name: "BookLab", copy: "Book design, formatting & publishing", code: "DL" },
+  { icon: Play, name: "Media", copy: "Storytelling, YouTube & content", code: "DM" },
+  { icon: Layers3, name: "Academy", copy: "Courses & learning resources", code: "DA" },
+  { icon: Plane, name: "Transport", copy: "A future-facing transport vision", code: "DT" },
 ];
 
 const books = [
@@ -276,6 +276,14 @@ const featuredWorkHighlights = [
   "Ricardo's Amazon Bestselling Educational Books",
   "Jimmy's Sports Betting Book",
   "NLS Rwanda Educational Materials",
+];
+
+const featuredProjects = [
+  { category: "workbooks", title: "MISA Educational Series", image: "27" },
+  { category: "children", title: "Tangie's Children's Books", image: "13" },
+  { category: "covers", title: "Ricardo's Amazon Bestselling Educational Books", image: "19" },
+  { category: "interiors", title: "Jimmy's Sports Betting Book", image: "40" },
+  { category: "pdf", title: "NLS Rwanda Educational Materials", image: "46" },
 ];
 
 const requestServiceOptions = [
@@ -534,6 +542,7 @@ function addToCart(product, quantity = 1) {
 
 function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [openMobileDropdown, setOpenMobileDropdown] = useState(null);
   const [cartCount, setCartCount] = useState(0);
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
@@ -602,7 +611,36 @@ function Header() {
         </div>
         {isOpen && (
           <nav className="mobile-nav" aria-label="Mobile navigation">
-            {navItems.map((item) => <a href={item.href} onClick={() => setIsOpen(false)} key={item.label}>{item.label}</a>)}
+            {navItems.map((item) => {
+              if (!item.children) {
+                return <a href={item.href} onClick={() => setIsOpen(false)} key={item.label}>{item.label}</a>;
+              }
+
+              const isDropdownOpen = openMobileDropdown === item.label;
+
+              return (
+                <div className={`mobile-nav-item ${isDropdownOpen ? "is-open" : ""}`} key={item.label}>
+                  <button
+                    type="button"
+                    aria-expanded={isDropdownOpen}
+                    onClick={() => setOpenMobileDropdown(isDropdownOpen ? null : item.label)}
+                  >
+                    {item.label} <ChevronDown size={15} />
+                  </button>
+                  {isDropdownOpen && (
+                    <div className="mobile-dropdown">
+                      <a href={item.href} onClick={() => setIsOpen(false)}>View {item.label}</a>
+                      {item.children.map((child) => {
+                        const childLabel = typeof child === "string" ? child : child.label;
+                        const childHref = typeof child === "string" ? item.href : child.href;
+
+                        return <a href={childHref} onClick={() => setIsOpen(false)} key={childLabel}>{childLabel}</a>;
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <a href="#login" onClick={() => setIsOpen(false)}>Login</a>
             <a href="/shop#cart" onClick={() => setIsOpen(false)}>Shopping bag ({cartCount})</a>
             <a className="button" href="/request-project" onClick={() => setIsOpen(false)}>Start a Project</a>
@@ -655,7 +693,7 @@ function BookCover({ book, index }) {
         </div>
         <div className="book-actions">
           <a href="/request-project">Order from me <ArrowRight size={15} /></a>
-          <a href="#amazon">Amazon <ExternalLink size={14} /></a>
+          <a href="#amazon">Shop on Amazon <ExternalLink size={14} /></a>
         </div>
       </div>
     </article>
@@ -702,14 +740,19 @@ function ShopProductCard({ product }) {
       <div className="shop-product-info">
         <p>{product.category_label}</p>
         <a href={`/shop/${product.slug}`}><h3>{product.title}</h3></a>
-        <div className="product-rating"><Star size={13} /> {product.rating} <span>({product.review_count})</span></div>
+        <div className="product-rating">
+          <span>{Number(product.rating).toFixed(1)}</span>
+          <span className="course-stars"><Star size={12} /><Star size={12} /><Star size={12} /><Star size={12} /><Star size={12} /></span>
+          <span>({product.review_count})</span>
+        </div>
         <div className="product-card-bottom">
           <div className="product-price">
             <strong>{formatPrice(product)}</strong>
             {product.compare_at_price && <del>${product.compare_at_price}</del>}
           </div>
           <button type="button" onClick={handleAdd} aria-label={`Add ${product.title} to bag`}>
-            {added ? <PackageCheck size={18} /> : <ShoppingBag size={18} />}
+            {added ? <PackageCheck size={17} /> : <ShoppingBag size={17} />}
+            <span>{added ? "Added" : "Add to Cart"}</span>
           </button>
         </div>
       </div>
@@ -721,13 +764,33 @@ function courseSlug(title) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-function CourseWaitlistCard({ title, category, icon }) {
+function getCourseDisplayData(title, category, categoryIndex = 0, itemIndex = 0) {
+  const titleMatch = title.match(/^(.*?)\s*\((.*)\)$/);
+  const courseTitle = titleMatch ? titleMatch[1] : title;
+  const courseSubtitle = titleMatch ? titleMatch[2] : category;
+  const displayPrice = title.toLowerCase().includes("chatgpt") ? 9 : 7;
+  const rating = title.toLowerCase().includes("chatgpt") ? "5.0" : "4.9";
+  const slug = courseSlug(title);
+  const videoSrc = categoryIndex === 0 && itemIndex === 0 ? "/assets/Course_one.mp4" : "";
+
+  return { title, courseTitle, courseSubtitle, category, displayPrice, rating, slug, videoSrc };
+}
+
+function getAllCourses() {
+  return courseCategories.flatMap((category, categoryIndex) => (
+    category.items.map((title, itemIndex) => getCourseDisplayData(title, category.title, categoryIndex, itemIndex))
+  ));
+}
+
+function CourseWaitlistCard({ title, category, icon, categoryIndex = 0, itemIndex = 0 }) {
   const [added, setAdded] = useState(false);
+  const { courseTitle, courseSubtitle, displayPrice, rating, slug } = getCourseDisplayData(title, category, categoryIndex, itemIndex);
+  const courseHref = `/courses/${slug}`;
   const product = {
     id: `course-${courseSlug(title)}`,
-    slug: `courses/${courseSlug(title)}`,
-    title,
-    price: 0,
+    slug: `courses/${slug}`,
+    title: courseTitle,
+    price: displayPrice,
   };
 
   const handleAdd = () => {
@@ -738,24 +801,21 @@ function CourseWaitlistCard({ title, category, icon }) {
 
   return (
     <article className="course-product-card">
-      <div className="course-thumbnail" aria-hidden="true">
-        <div className="course-thumbnail-brand">DANAJET ACADEMY</div>
-        <div className="course-thumbnail-mark">
-          <span>{icon}</span>
-          <strong>{category}</strong>
-        </div>
-        <img src="/assets/profile-image-new-cutout.png" alt="" />
-      </div>
-      <h3>{title}</h3>
+      <a className="course-thumbnail" href={courseHref} aria-label={`Preview ${courseTitle}`}>
+        <span className="course-thumbnail-accent" />
+        <span className="course-play-button"><Play size={32} fill="currentColor" /></span>
+      </a>
+      <h3><a href={courseHref}>{courseTitle}</a></h3>
+      <strong className="course-subtitle">{courseSubtitle}</strong>
       <p>Danajet Academy · Daniel the Booksmith</p>
       <div className="course-rating">
-        <span>4.9</span>
+        <span>{rating}</span>
         <span className="course-stars"><Star size={12} /><Star size={12} /><Star size={12} /><Star size={12} /><Star size={12} /></span>
         <span>(Coming soon)</span>
       </div>
       <div className="course-product-bottom">
         <div className="course-price">
-          <strong>$0</strong>
+          <strong>${displayPrice}</strong>
           <del>$49</del>
         </div>
         <button type="button" onClick={handleAdd} aria-label={`Add ${title} to cart`}>
@@ -768,6 +828,12 @@ function CourseWaitlistCard({ title, category, icon }) {
 }
 
 function CourseCatalog({ showHeading = true }) {
+  const [activeCategory, setActiveCategory] = useState("all");
+  const visibleCategories = activeCategory === "all"
+    ? courseCategories
+    : courseCategories.filter((category) => category.title === activeCategory);
+  const visibleCourseCount = visibleCategories.reduce((total, category) => total + category.items.length, 0);
+
   return (
     <div className="course-catalog">
       {showHeading && (
@@ -777,20 +843,52 @@ function CourseCatalog({ showHeading = true }) {
           copy="Join the waitlist for mini-courses, templates, tutorials, and publishing resources from Danajet BookLab."
         />
       )}
-      <div className="course-category-stack">
+      <div className="course-filters" aria-label="Filter courses and tutorials">
+        <button
+          className={activeCategory === "all" ? "is-active" : ""}
+          type="button"
+          onClick={() => setActiveCategory("all")}
+        >
+          All
+        </button>
         {courseCategories.map((category) => (
+          <button
+            className={activeCategory === category.title ? "is-active" : ""}
+            type="button"
+            onClick={() => setActiveCategory(category.title)}
+            key={category.title}
+          >
+            <span>{category.icon}</span>
+            {category.title}
+          </button>
+        ))}
+      </div>
+      <div className="course-count">{visibleCourseCount} courses and tutorials</div>
+      <div className="course-category-stack">
+        {visibleCategories.map((category) => {
+          const categoryIndex = courseCategories.findIndex((item) => item.title === category.title);
+
+          return (
           <section className="course-category" key={category.title}>
             <div className="course-category-heading">
               <span>{category.icon}</span>
               <h2>{category.title}</h2>
             </div>
             <div className="course-product-grid">
-              {category.items.map((item) => (
-                <CourseWaitlistCard title={item} category={category.title} icon={category.icon} key={item} />
+              {category.items.map((item, itemIndex) => (
+                <CourseWaitlistCard
+                  title={item}
+                  category={category.title}
+                  icon={category.icon}
+                  categoryIndex={categoryIndex}
+                  itemIndex={itemIndex}
+                  key={item}
+                />
               ))}
             </div>
           </section>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -860,7 +958,10 @@ function ShopPage() {
   }, []);
 
   const filteredProducts = products
-    .filter((product) => activeCategory === "all" || product.category === activeCategory)
+    .filter((product) => {
+      const productCategories = product.filter_categories || [product.category];
+      return activeCategory === "all" || productCategories.includes(activeCategory);
+    })
     .filter((product) => `${product.title} ${product.subtitle} ${product.author}`.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       if (sortBy === "price-low") return Number(a.price) - Number(b.price);
@@ -973,6 +1074,139 @@ function CoursesPage() {
   );
 }
 
+function CourseDetailPage({ slug }) {
+  const course = getAllCourses().find((item) => item.slug === slug);
+  const [added, setAdded] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  if (!course) {
+    return (
+      <div className="courses-page">
+        <Header />
+        <main className="product-not-found">
+          <h1>Course not found.</h1>
+          <a className="button" href="/courses">Back to Courses <ArrowRight size={17} /></a>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const handleAdd = () => {
+    addToCart({
+      id: `course-${course.slug}`,
+      slug: `courses/${course.slug}`,
+      title: course.courseTitle,
+      price: course.displayPrice,
+    });
+    setAdded(true);
+    window.setTimeout(() => setAdded(false), 1400);
+  };
+
+  return (
+    <div className="courses-page">
+      <Header />
+      <main>
+        <section className="course-detail-hero">
+          <div className="container course-detail-layout">
+            <div className="course-detail-copy">
+              <a className="portfolio-back academy-back" href="/courses"><ArrowRight size={16} /> Back to courses</a>
+              <p className="eyebrow">Danajet Academy</p>
+              <h1>{course.courseTitle}</h1>
+              <p>{course.courseSubtitle}</p>
+              <div className="course-detail-meta">
+                <span>{course.rating}</span>
+                <span className="course-stars"><Star size={15} /><Star size={15} /><Star size={15} /><Star size={15} /><Star size={15} /></span>
+                <span>{course.category}</span>
+                <span>Coming Soon</span>
+              </div>
+              <div className="course-detail-actions">
+                <div className="course-detail-price"><strong>${course.displayPrice}</strong><del>$49</del></div>
+                <button className="button" type="button" onClick={handleAdd}>
+                  {added ? <PackageCheck size={17} /> : <ShoppingBag size={17} />}
+                  {added ? "Added" : "Add to Cart"}
+                </button>
+              </div>
+            </div>
+            <div className="course-preview-panel">
+              {course.videoSrc ? (
+                <button className="course-preview-trigger" type="button" onClick={() => setIsPreviewOpen(true)} aria-label={`Preview ${course.courseTitle}`}>
+                  <video src={course.videoSrc} muted preload="metadata" tabIndex="-1" />
+                  <div className="course-preview-overlay" aria-hidden="true">
+                    <span><Play size={40} fill="currentColor" /></span>
+                    <strong>Preview this course</strong>
+                  </div>
+                </button>
+              ) : (
+                <div className="course-preview-placeholder">
+                  <span className="course-play-button"><Play size={38} fill="currentColor" /></span>
+                  <strong>Preview coming soon</strong>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+        {isPreviewOpen && (
+          <div className="course-preview-modal" role="dialog" aria-modal="true" aria-label={`${course.courseTitle} preview`}>
+            <button className="lightbox-backdrop" type="button" onClick={() => setIsPreviewOpen(false)} aria-label="Close course preview" />
+            <div className="course-preview-modal-content">
+              <header>
+                <div>
+                  <p>Course Preview</p>
+                  <h2>{course.courseTitle}</h2>
+                </div>
+                <button type="button" onClick={() => setIsPreviewOpen(false)} aria-label="Close"><X size={22} /></button>
+              </header>
+              <video src={course.videoSrc} controls autoPlay />
+              <div className="course-preview-samples">
+                <strong>This course includes</strong>
+                <span><MonitorPlay size={16} /> 21 hours on-demand video</span>
+                <span><FileText size={16} /> 14 articles</span>
+                <span><MonitorPlay size={16} /> Access on mobile and TV</span>
+                <span><PackageCheck size={16} /> Certificate of completion</span>
+              </div>
+            </div>
+          </div>
+        )}
+        <section className="section course-detail-body">
+          <div className="container course-detail-body-grid">
+            <div className="course-learn-panel">
+              <h2>What you'll learn</h2>
+              <div className="course-learn-list">
+                <span><PackageCheck size={16} /> <span><strong>Project 1: Career Digital Twin.</strong> Build and deploy your own Agent to represent you to potential future employers.</span></span>
+                <span><PackageCheck size={16} /> <span><strong>Project 2: SDR Agent.</strong> An instant business application: create Sales Representatives that craft and send professional emails.</span></span>
+                <span><PackageCheck size={16} /> <span><strong>Project 3: Deep Research.</strong> Make your own version of the essential Agentic use case: a team of Agents that carry out extensive research on any topic you choose.</span></span>
+                <span><PackageCheck size={16} /> <span><strong>Project 4:</strong> Build a Stock Picker Agent in minutes with CrewAI - automate your search for investment gems!</span></span>
+                <span><PackageCheck size={16} /> <span><strong>Project 5:</strong> Deploy your own 4-Agent Engineering Team - manage, build, and test software apps with CrewAI and Coder Agents in Docker!</span></span>
+                <span><PackageCheck size={16} /> <span><strong>Project 6:</strong> Build your own version of OpenAI's Operator Agent - your Sidekick works with you inside your browser via LangGraph!</span></span>
+                <span><PackageCheck size={16} /> <span><strong>Project 7: Agent Creator</strong> - an Agent that builds and launches new Agents using AutoGen, unlocking endless AI possibilities!</span></span>
+                <span><PackageCheck size={16} /> <span><strong>Project 8: Capstone</strong> - build a Trading Floor with 4 Agents making autonomous trades, powered by 6 MCP servers and 44 tools!</span></span>
+              </div>
+            </div>
+            <aside className="course-includes-panel">
+              <p className="eyebrow">This course includes</p>
+              <span><MonitorPlay size={18} /> 21 hours on-demand video</span>
+              <span><FileText size={18} /> 14 articles</span>
+              <span><MonitorPlay size={18} /> Access on mobile and TV</span>
+              <span><PackageCheck size={18} /> Certificate of completion</span>
+              <a href="#related-topics">Explore related topics <ArrowRight size={16} /></a>
+            </aside>
+            <div className="course-related-topics" id="related-topics">
+              <p className="eyebrow">Explore related topics</p>
+              <span>Agentic AI</span>
+              <span>CrewAI</span>
+              <span>LangGraph</span>
+              <span>AutoGen</span>
+              <span>MCP Servers</span>
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 function ProductDetailPage({ slug }) {
   const [product, setProduct] = useState(mockProducts.find((item) => item.slug === slug));
   const [quantity, setQuantity] = useState(1);
@@ -1020,7 +1254,11 @@ function ProductDetailPage({ slug }) {
             <p className="eyebrow">{product.category_label}</p>
             <h1>{product.title}</h1>
             <p className="product-subtitle">{product.subtitle}</p>
-            <div className="product-rating product-rating-large"><Star size={16} /> {product.rating} <a href="#reviews">{product.review_count} reviews</a></div>
+            <div className="product-rating product-rating-large">
+              <span>{Number(product.rating).toFixed(1)}</span>
+              <span className="course-stars"><Star size={15} /><Star size={15} /><Star size={15} /><Star size={15} /><Star size={15} /></span>
+              <a href="#reviews">{product.review_count} reviews</a>
+            </div>
             <div className="product-detail-price">
               <strong>{formatPrice(product)}</strong>
               {product.compare_at_price && <del>${product.compare_at_price}</del>}
@@ -1033,7 +1271,8 @@ function ProductDetailPage({ slug }) {
                 <button type="button" onClick={() => setQuantity(quantity + 1)} aria-label="Increase quantity"><Plus /></button>
               </div>
               <button className="button product-add-button" type="button" onClick={handleAdd}>
-                {added ? <>Added to bag <PackageCheck size={18} /></> : <>Add to bag <ShoppingBag size={18} /></>}
+                {added ? <PackageCheck size={18} /> : <ShoppingBag size={18} />}
+                <span>{added ? "Added" : "Add to Cart"}</span>
               </button>
             </div>
             <div className="product-stock"><span /> In stock and ready to ship</div>
@@ -1104,6 +1343,7 @@ function Footer() {
         <div className="footer-brand">
           <BrandMark light />
           <p>Helping authors create, publish, and share professional books while building educational resources, media projects, and future innovations.</p>
+          <a className="footer-brand-link" href="/blog">Blog Posts <ArrowRight size={15} /></a>
           <div className="socials">
             <a href="#youtube" aria-label="YouTube"><Youtube /></a>
             <a href="#instagram" aria-label="Instagram"><Instagram /></a>
@@ -1111,10 +1351,10 @@ function Footer() {
             <a href="#linkedin" aria-label="LinkedIn"><Linkedin /></a>
           </div>
         </div>
-        <div><h3>Explore</h3><a href="/about">About</a><a href="/shop">Shop</a><a href="/courses">Academy</a><a href="/#brands">Media</a><a href="/reviews">Testimonials</a></div>
+        <div><h3>Explore</h3><a href="/about">About</a><a href="/shop">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="/#brands">Media</a><a href="/reviews">Testimonials</a></div>
         <div><h3>BookLab</h3><a href="/#services">Book formatting</a><a href="/#services">Book design</a><a href="/#services">KDP support</a><a href="/#services">EPUB formatting</a><a href="/portfolio">Portfolio</a></div>
         <div><h3>More Services</h3><a href="/#services">Children's books</a><a href="/#services">Workbook design</a><a href="/#services">A+ content design</a><a href="/#services">Book trailers</a></div>
-        <div><h3>Contact</h3><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
+        <div><h3>Contact</h3><a href="/contact">Contact page</a><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="/contact#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
       </div>
       <div className="container footer-bottom">
         <p>© 2026 Danajet Nig. Ltd. All Rights Reserved. Powered by Danajet.</p>
@@ -1416,9 +1656,151 @@ function RequestProjectPage() {
   );
 }
 
-function HomePage() {
-  const featuredProjects = [projects[0], projects[10], projects[20], projects[24], projects[31], projects[36]];
+function ContactPage() {
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const contactRoutes = [
+    {
+      icon: Send,
+      title: "Start a book project",
+      copy: "For formatting, book design, KDP support, A+ content, workbooks, and publishing help.",
+      action: "Request a Project",
+      href: "/request-project",
+    },
+    {
+      icon: BookOpen,
+      title: "Review the work",
+      copy: "Browse selected book interiors, covers, A+ content, PDFs, and educational layouts.",
+      action: "View Portfolio",
+      href: "/portfolio",
+    },
+    {
+      icon: MonitorPlay,
+      title: "Courses and tutorials",
+      copy: "Explore practical learning resources for authors, creators, and self-publishers.",
+      action: "Visit Academy",
+      href: "/courses",
+    },
+  ];
+  const contactDetails = [
+    { label: "Email", value: "hello@danajet.com", href: "mailto:hello@danajet.com" },
+    { label: "WhatsApp", value: "Message Danajet", href: "#whatsapp", id: "whatsapp" },
+    { label: "Availability", value: "Monday to Friday" },
+    { label: "Response", value: "Usually within 1-2 business days" },
+  ];
 
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    setIsSubmitted(true);
+  };
+
+  return (
+    <div className="contact-page">
+      <Header />
+      <main>
+        <section className="contact-hero">
+          <div className="container contact-hero-inner">
+            <a className="portfolio-back" href="/"><ArrowRight size={16} /> Back to home</a>
+            <p className="eyebrow">Contact Danajet</p>
+            <h1>Let's talk.</h1>
+            <p>Have a book project, publishing question, course request, or collaboration idea? Send a message and I will get back to you.</p>
+            <div className="contact-hero-actions">
+              <a className="button" href="#contact-form">Send a Message <Send size={17} /></a>
+              <a className="button button-outline" href="/request-project">Request a Project <ArrowRight size={17} /></a>
+            </div>
+          </div>
+        </section>
+
+        <section className="contact-options">
+          <div className="container contact-options-grid">
+            {contactRoutes.map(({ icon: Icon, ...route }) => (
+              <a className="contact-route-card" href={route.href} key={route.title}>
+                <Icon size={24} />
+                <div>
+                  <h2>{route.title}</h2>
+                  <p>{route.copy}</p>
+                </div>
+                <span>{route.action} <ArrowRight size={16} /></span>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <section className="section contact-main-section">
+          <div className="container contact-main-layout">
+            <aside className="contact-detail-panel">
+              <p className="eyebrow">Direct channels</p>
+              <h2>Choose the easiest way to reach me.</h2>
+              <div className="contact-detail-list">
+                {contactDetails.map((detail) => (
+                  <div className="contact-detail-item" id={detail.id} key={detail.label}>
+                    <span>{detail.label}</span>
+                    {detail.href ? <a href={detail.href}>{detail.value}</a> : <strong>{detail.value}</strong>}
+                  </div>
+                ))}
+              </div>
+              <div className="contact-note">
+                <strong>Project ready?</strong>
+                <p>Use the project request form when you already know the service, book size, budget, timeline, or manuscript status.</p>
+                <a href="/request-project">Go to request form <ArrowRight size={15} /></a>
+              </div>
+            </aside>
+
+            {isSubmitted ? (
+              <div className="contact-success" role="status">
+                <PackageCheck size={40} />
+                <h2>Message received.</h2>
+                <p>Thank you for reaching out. I will review your message and respond through your preferred contact channel.</p>
+                <a className="button" href="/">Return Home <ArrowRight size={17} /></a>
+              </div>
+            ) : (
+              <form className="contact-form" id="contact-form" onSubmit={handleSubmit}>
+                <div className="form-grid two-columns">
+                  <label className="form-field">
+                    <span>Full Name <b>*</b></span>
+                    <input name="fullName" type="text" autoComplete="name" required />
+                  </label>
+                  <label className="form-field">
+                    <span>Email Address <b>*</b></span>
+                    <input name="email" type="email" autoComplete="email" required />
+                  </label>
+                </div>
+                <div className="form-grid two-columns">
+                  <label className="form-field">
+                    <span>Phone or WhatsApp</span>
+                    <input name="phone" type="tel" autoComplete="tel" placeholder="+1" />
+                  </label>
+                  <label className="form-field">
+                    <span>Reason for Contact <b>*</b></span>
+                    <select name="reason" defaultValue="" required>
+                      <option value="" disabled>Select a reason</option>
+                      <option>Book design or formatting</option>
+                      <option>Publishing support</option>
+                      <option>Courses and tutorials</option>
+                      <option>Media or partnership</option>
+                      <option>General question</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="form-field">
+                  <span>Message <b>*</b></span>
+                  <textarea name="message" required placeholder="Tell me what you need help with, your timeline, and the best way to respond." />
+                </label>
+                <label className="contact-consent">
+                  <input name="consent" type="checkbox" required />
+                  <span>I understand Danajet may contact me about this message.</span>
+                </label>
+                <button className="button contact-submit" type="submit">Send Message <Send size={17} /></button>
+              </form>
+            )}
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function HomePage() {
   return (
     <div>
       <Header />
@@ -1437,7 +1819,7 @@ function HomePage() {
           <div className="hero-inner container">
             <div className="hero-copy">
               <p className="eyebrow"><span>Danajet BookLab</span> Your book, ready for takeoff</p>
-              <h1><span>Helping</span><span>Authors</span><span>Make Their</span><em>Books Soar!</em></h1>
+              <h1><span>Helping</span><span>Authors</span><span>Make Their</span><em>Books Soar<span className="black-punctuation">!</span></em></h1>
               <p className="hero-description">
                 Personal book formatting, design, and publishing support that helps your message reach more readers.
               </p>
@@ -1447,7 +1829,9 @@ function HomePage() {
               </div>
               <div className="hero-proof">
                 <div className="avatar-stack" aria-hidden="true">
-                  <span>AK</span><span>DO</span><span>LM</span>
+                  <img src="/assets/reviews/richard-bass.jpg" alt="" />
+                  <img src="/assets/reviews/jesi-washington.jpg" alt="" />
+                  <img src="/assets/reviews/tangie-cokes.jpg" alt="" />
                 </div>
                 <p><strong>5.0 client rating</strong><br />Books created with care</p>
               </div>
@@ -1577,14 +1961,6 @@ function HomePage() {
               copy="A small selection from the full Danajet portfolio across publishing, content, and document design."
               action={<a className="button button-outline" href="/portfolio">View Full Portfolio <ArrowRight size={17} /></a>}
             />
-            <div className="featured-work-list" aria-label="Featured work highlights">
-              {featuredWorkHighlights.map((item) => (
-                <div className="featured-work-item" key={item}>
-                  <BookOpen size={18} />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
             <div className="project-grid portfolio-grid">
               {featuredProjects.map((project, index) => (
                 <PortfolioCard project={project} index={index} key={`${project.category}-${project.image}`} />
@@ -1597,7 +1973,6 @@ function HomePage() {
           <FlightPath variant="corner" tone="light" />
           <div className="container">
             <div className="testimonial-heading">
-              <p className="eyebrow light-eyebrow">Client stories</p>
               <h2>Kind words from people whose ideas took flight.</h2>
             </div>
             <div className="testimonial-grid">
@@ -1635,6 +2010,7 @@ function HomePage() {
           <div className="footer-brand">
             <BrandMark light />
             <p>Helping authors create, publish, and share professional books while building educational resources, media projects, and future innovations.</p>
+            <a className="footer-brand-link" href="/blog">Blog Posts <ArrowRight size={15} /></a>
             <div className="socials">
               <a href="#youtube" aria-label="YouTube"><Youtube /></a>
               <a href="#instagram" aria-label="Instagram"><Instagram /></a>
@@ -1642,7 +2018,7 @@ function HomePage() {
               <a href="#linkedin" aria-label="LinkedIn"><Linkedin /></a>
             </div>
           </div>
-          <div><h3>Explore</h3><a href="/about">About</a><a href="#books">Shop</a><a href="/courses">Academy</a><a href="#brands">Media</a><a href="#testimonials">Testimonials</a></div>
+          <div><h3>Explore</h3><a href="/about">About</a><a href="#books">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="#brands">Media</a><a href="#testimonials">Testimonials</a></div>
           <div><h3>BookLab</h3><a href="#services">Book formatting</a><a href="#services">Book design</a><a href="#services">KDP support</a><a href="#services">EPUB formatting</a><a href="#portfolio">Portfolio</a></div>
           <div><h3>More Services</h3><a href="#services">Children's books</a><a href="#services">Workbook design</a><a href="#services">A+ content design</a><a href="#services">Book trailers</a></div>
           <div><h3>Contact</h3><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
@@ -1743,7 +2119,6 @@ function ReviewsPage() {
           <div className="container reviews-hero-inner">
             <div>
               <a className="reviews-back" href="/"><ArrowRight size={16} /> Back to home</a>
-              <p className="eyebrow light-eyebrow">Client stories</p>
               <h1>Kind words from ideas that <em>took flight.</em></h1>
             </div>
             <div className="reviews-intro">
@@ -3226,10 +3601,15 @@ function AdminDashboardPage() {
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   const productMatch = path.match(/^\/shop\/([^/]+)$/);
+  const courseMatch = path.match(/^\/courses\/([^/]+)$/);
 
   if (productMatch) {
     document.title = "Book Details | Danajet Shop";
     return <ProductDetailPage slug={decodeURIComponent(productMatch[1])} />;
+  }
+  if (courseMatch) {
+    document.title = "Course Details | Danajet Academy";
+    return <CourseDetailPage slug={decodeURIComponent(courseMatch[1])} />;
   }
   if (path === "/shop") {
     document.title = "Shop Books | Danajet";
@@ -3250,6 +3630,10 @@ function App() {
   if (path === "/request-project") {
     document.title = "Request a Project | Danajet BookLab";
     return <RequestProjectPage />;
+  }
+  if (path === "/contact") {
+    document.title = "Contact | Danajet";
+    return <ContactPage />;
   }
   if (path === "/reviews") {
     document.title = "Client Reviews | Danajet";
