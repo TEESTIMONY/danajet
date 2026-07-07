@@ -1389,7 +1389,7 @@ function Footer() {
       <div className="container footer-grid">
         <div className="footer-brand">
           <BrandMark light />
-          <p>Helping authors create, publish, and share professional books while building educational resources, media projects, and future innovations.</p>
+          <p>Helping authors create, publish, and share professional books while building educational resources, creative media, and future innovations.</p>
           <a className="footer-brand-link" href="/blog">Blog Posts <ArrowRight size={15} /></a>
           <div className="socials">
             <a href="#youtube" aria-label="YouTube"><Youtube /></a>
@@ -1404,7 +1404,7 @@ function Footer() {
         <div><h3>Contact</h3><a href="/contact">Contact page</a><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="/contact#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
       </div>
       <div className="container footer-bottom">
-        <p>© 2026 Danajet Nig. Ltd. All Rights Reserved. Powered by Danajet.</p>
+        <p>© 2026 Danajet Nig.Ltd.All Rights Reserved.</p>
         <div><a href="#privacy">Privacy Policy</a><a href="#terms">Terms & Conditions</a></div>
       </div>
     </footer>
@@ -1945,7 +1945,7 @@ function HomePage() {
           <div className="container">
             <p className="eyebrow light-eyebrow eyebrow-pill">One vision, four destinations</p>
             <div className="brands-intro">
-              <h2>Meet the Danajet group<span className="orange-text">.</span></h2>
+              <h2>Meet the <span className="orange-text">Danajet group</span><span className="theme-stop">.</span></h2>
               <p>Publishing is where we begin. Learning, media, and future innovation are where the journey continues.</p>
             </div>
             <div className="brand-grid">
@@ -1968,7 +1968,7 @@ function HomePage() {
             <SectionHeading
               eyebrow="Featured books"
               eyebrowClassName="eyebrow-pill"
-              title={<>Fresh stories. <span className="orange-text">Beautifully made.</span></>}
+              title={<>Fresh stories<span className="theme-stop">.</span> <span className="orange-text">Beautifully made<span className="theme-stop">.</span></span></>}
               copy="Explore books designed to inform, inspire, and stay with you long after the final page."
               action={<a className="text-link" href="/shop">Visit the shop <ArrowRight size={17} /></a>}
             />
@@ -2007,7 +2007,7 @@ function HomePage() {
             <SectionHeading
               eyebrow="Featured work"
               eyebrowClassName="eyebrow-pill"
-              title={<>A glimpse of work, <span className="orange-text">made to stand out.</span></>}
+              title={<>A glimpse of work, <span className="orange-text">made to stand out<span className="theme-stop">.</span></span></>}
               copy="A small selection from the full Danajet portfolio across publishing, content, and document design."
               action={<a className="button button-outline" href="/portfolio">View Full Portfolio <ArrowRight size={17} /></a>}
             />
@@ -2060,7 +2060,7 @@ function HomePage() {
         <div className="container footer-grid">
           <div className="footer-brand">
             <BrandMark light />
-            <p>Helping authors create, publish, and share professional books while building educational resources, media projects, and future innovations.</p>
+            <p>Helping authors create, publish, and share professional books while building educational resources, creative media, and future innovations.</p>
             <a className="footer-brand-link" href="/blog">Blog Posts <ArrowRight size={15} /></a>
             <div className="socials">
               <a href="#youtube" aria-label="YouTube"><Youtube /></a>
@@ -2075,7 +2075,7 @@ function HomePage() {
           <div><h3>Contact</h3><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
         </div>
         <div className="container footer-bottom">
-          <p>© 2026 Danajet Nig. Ltd. All Rights Reserved. Powered by Danajet.</p>
+          <p>© 2026 Danajet Nig.Ltd.All Rights Reserved.</p>
           <div><a href="#privacy">Privacy Policy</a><a href="#terms">Terms & Conditions</a></div>
         </div>
       </footer>
@@ -2312,7 +2312,7 @@ const adminContactDefaults = {
   instagram: "#instagram",
   tiktok: "#tiktok",
   linkedin: "#linkedin",
-  footerCopy: "Helping authors create, publish, and share professional books while building educational resources, media projects, and future innovations.",
+  footerCopy: "Helping authors create, publish, and share professional books while building educational resources, creative media, and future innovations.",
 };
 
 const adminSiteDefaults = {

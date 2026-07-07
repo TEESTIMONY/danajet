@@ -317,24 +317,39 @@ img { max-width: 100%; display: block; }
 .hero-inner { position: relative; z-index: 5; }
 .hero-copy { width: min(660px, 52%); padding: 92px 0 112px; }
 .eyebrow {
-  margin: 0 0 18px;
-  color: var(--orange-dark);
-  font: 800 15px/1 var(--heading);
-  text-transform: uppercase;
-}
-.eyebrow-pill {
   width: fit-content;
   display: inline-flex;
   align-items: center;
   min-height: 34px;
+  margin: 0 0 18px;
   padding: 9px 14px 8px;
   border: 1px solid rgba(0, 0, 0, .08);
   border-radius: 999px;
   background: #000;
   color: #fff;
   box-shadow: 0 10px 24px rgba(0, 0, 0, .06);
+  font: 800 15px/1 var(--heading);
+  text-transform: uppercase;
 }
-.hero .eyebrow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.eyebrow-pill {
+  background: #000;
+  color: #fff;
+}
+.hero .eyebrow {
+  width: auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--orange-dark);
+  box-shadow: none;
+}
 .hero .eyebrow span { background: var(--black); color: white; padding: 8px 11px; border-radius: 999px; }
 .hero .eyebrow,
 .hero h1,
@@ -410,6 +425,7 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
 .section-heading-side > p { margin: 0; color: var(--muted); line-height: 1.7; font-size: 15px; }
 .orange-text { color: var(--orange-dark); }
 .black-punctuation { color: var(--black); }
+.theme-stop { color: var(--orange); }
 
 .about-story {
   display: grid;
@@ -828,7 +844,7 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
 .lightbox-content h3 { margin: 0; font-size: 28px; }
 .lightbox-close { position: absolute; z-index: 2; top: 12px; right: 12px; width: 42px; aspect-ratio: 1; padding: 0; border: 0; background: var(--orange); color: white; display: grid; place-items: center; cursor: pointer; }
 
-.shop-hero { overflow: hidden; background: var(--soft); border-bottom: 1px solid var(--line); }
+.shop-hero { display: none; overflow: hidden; background: var(--soft); border-bottom: 1px solid var(--line); }
 .shop-hero-inner { min-height: 575px; display: grid; grid-template-columns: 1fr .9fr; align-items: center; gap: 80px; }
 .shop-hero h1 { max-width: 720px; font-size: clamp(58px, 6.4vw, 92px); }
 .shop-hero h1 em { color: var(--orange-dark); }
@@ -3149,7 +3165,7 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
 .final-cta-inner { position: relative; z-index: 2; }
 .final-cta .eyebrow { color: white; }
 .final-cta .eyebrow-pill { color: #171717; }
-.final-cta .orange-text { color: var(--orange); }
+.final-cta .orange-text { color: #171717; }
 .final-cta h2 { max-width: 800px; font-size: clamp(58px, 7vw, 95px); }
 .final-cta p:not(.eyebrow) { max-width: 600px; margin: 25px 0 32px; color: white; line-height: 1.7; }
 .final-cta .button { background: var(--black); border-color: var(--black); color: white; }
@@ -3213,9 +3229,15 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
 
 :root[data-theme="dark"] .brand:not(.brand-light) img { filter: invert(1); }
 :root[data-theme="dark"] .black-punctuation { color: var(--ink); }
+:root[data-theme="dark"] .theme-stop { color: #fff; }
+:root[data-theme="dark"] .eyebrow,
 :root[data-theme="dark"] .eyebrow-pill {
   background: #fffdf9;
   color: #171717;
+}
+:root[data-theme="dark"] .hero .eyebrow {
+  background: transparent;
+  color: var(--orange-dark);
 }
 :root[data-theme="dark"] .button-outline,
 :root[data-theme="dark"] .text-link,
@@ -3279,6 +3301,9 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
 :root[data-theme="dark"] .final-cta h2,
 :root[data-theme="dark"] .final-cta p:not(.eyebrow) {
   color: #171717;
+}
+:root[data-theme="dark"] .final-cta .orange-text {
+  color: var(--orange);
 }
 :root[data-theme="dark"] .final-cta .button {
   background: #000;
@@ -3774,13 +3799,27 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
   .service-row strong { font-size: 20px; }
   .footer-grid { grid-template-columns: 1fr; }
   .footer-brand { grid-column: auto; }
-  .shop-grid, .related-products .shop-grid { grid-template-columns: 1fr; }
+  .shop-grid, .related-products .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .shop-hero h1 { font-size: 42px; }
   .product-summary h1 { font-size: 44px; }
   .product-story-band h2 { font-size: 38px; }
   .reviews-hero h1 { font-size: 46px; }
   .reviews-cta h2 { font-size: 43px; }
-  .shop-product-image .shop-artwork { aspect-ratio: 1; }
+  .shop-product-image .shop-artwork { min-height: 160px; aspect-ratio: .86; }
+  .shop-product-card .shop-book { width: 56%; padding: 8% 7%; }
+  .shop-product-card .shop-book h3 { font-size: 20px; }
+  .shop-product-card .shop-book p,
+  .shop-product-card .shop-book-kicker { font-size: 7px; }
+  .shop-product-info { padding: 10px; }
+  .shop-product-info > p { margin-bottom: 4px; font-size: 8px; }
+  .shop-product-info h3 { margin-bottom: 7px; font-size: 15px; line-height: 1.05; }
+  .product-rating { gap: 2px; font-size: 11px; }
+  .product-rating .course-stars svg { width: 10px; height: 10px; }
+  .product-card-bottom { min-height: auto; margin-top: 10px; align-items: flex-start; flex-direction: column; gap: 8px; }
+  .product-price strong { font-size: 14px; }
+  .product-card-bottom button { min-height: 34px; padding: 0 10px 0 0; font-size: 9px; }
+  .product-card-bottom button svg { width: 31px; height: 31px; padding: 8px; }
+  .product-badge { top: 8px; left: 8px; padding: 5px 7px; font-size: 8px; }
   .product-purchase { grid-template-columns: 1fr; }
   .quantity-control { width: 126px; }
   .product-feature-list { grid-template-columns: 1fr; }
