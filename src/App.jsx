@@ -540,6 +540,49 @@ function addToCart(product, quantity = 1) {
   window.dispatchEvent(new Event("danajet-cart-updated"));
 }
 
+function useScrollReveal() {
+  useEffect(() => {
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return undefined;
+
+    const selectors = [
+      ".section-heading",
+      ".service-card",
+      ".brand-card",
+      ".book-card",
+      ".service-row",
+      ".project-card",
+      ".testimonial-card",
+      ".shop-pathway-card",
+      ".shop-product-card",
+      ".course-product-card",
+      ".review-card",
+      ".contact-route-card",
+      ".contact-detail-panel",
+      ".request-sidebar",
+      ".request-form",
+      ".contact-form",
+    ];
+    const elements = Array.from(document.querySelectorAll(selectors.join(",")));
+
+    elements.forEach((element, index) => {
+      element.classList.add("reveal-on-scroll");
+      element.style.setProperty("--reveal-delay", `${Math.min(index % 6, 5) * 70}ms`);
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    }, { rootMargin: "0px 0px -12% 0px", threshold: 0.12 });
+
+    elements.forEach((element) => observer.observe(element));
+
+    return () => observer.disconnect();
+  }, []);
+}
+
 function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [openMobileDropdown, setOpenMobileDropdown] = useState(null);
@@ -1819,7 +1862,7 @@ function HomePage() {
           <div className="hero-inner container">
             <div className="hero-copy">
               <p className="eyebrow"><span>Danajet BookLab</span> Your book, ready for takeoff</p>
-              <h1><span>Helping</span><span>Authors</span><span>Make Their</span><em>Books Soar<span className="black-punctuation">!</span></em></h1>
+              <h1><span className="hero-title-pair">Helping <span>Authors</span></span><span>Make Their</span><em>Books Soar<span className="black-punctuation">!</span></em></h1>
               <p className="hero-description">
                 Personal book formatting, design, and publishing support that helps your message reach more readers.
               </p>
@@ -3599,6 +3642,8 @@ function AdminDashboardPage() {
 }
 
 function App() {
+  useScrollReveal();
+
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   const productMatch = path.match(/^\/shop\/([^/]+)$/);
   const courseMatch = path.match(/^\/courses\/([^/]+)$/);
