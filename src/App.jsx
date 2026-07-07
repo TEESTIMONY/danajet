@@ -672,7 +672,6 @@ function Header() {
                   </button>
                   {isDropdownOpen && (
                     <div className="mobile-dropdown">
-                      <a href={item.href} onClick={() => setIsOpen(false)}>View {item.label}</a>
                       {item.children.map((child) => {
                         const childLabel = typeof child === "string" ? child : child.label;
                         const childHref = typeof child === "string" ? item.href : child.href;
@@ -702,11 +701,11 @@ function Header() {
   );
 }
 
-function SectionHeading({ eyebrow, title, copy, action }) {
+function SectionHeading({ eyebrow, title, copy, action, eyebrowClassName = "" }) {
   return (
     <div className="section-heading">
       <div>
-        <p className="eyebrow">{eyebrow}</p>
+        <p className={`eyebrow ${eyebrowClassName}`.trim()}>{eyebrow}</p>
         <h2>{title}</h2>
       </div>
       <div className="section-heading-side">
@@ -850,7 +849,7 @@ function CourseWaitlistCard({ title, category, icon, categoryIndex = 0, itemInde
       </a>
       <h3><a href={courseHref}>{courseTitle}</a></h3>
       <strong className="course-subtitle">{courseSubtitle}</strong>
-      <p>Danajet Academy · Daniel the Booksmith</p>
+      <p className="course-card-meta">Danajet Academy <span>Coming Soon</span></p>
       <div className="course-rating">
         <span>{rating}</span>
         <span className="course-stars"><Star size={12} /><Star size={12} /><Star size={12} /><Star size={12} /><Star size={12} /></span>
@@ -875,8 +874,6 @@ function CourseCatalog({ showHeading = true }) {
   const visibleCategories = activeCategory === "all"
     ? courseCategories
     : courseCategories.filter((category) => category.title === activeCategory);
-  const visibleCourseCount = visibleCategories.reduce((total, category) => total + category.items.length, 0);
-
   return (
     <div className="course-catalog">
       {showHeading && (
@@ -906,7 +903,6 @@ function CourseCatalog({ showHeading = true }) {
           </button>
         ))}
       </div>
-      <div className="course-count">{visibleCourseCount} courses and tutorials</div>
       <div className="course-category-stack">
         {visibleCategories.map((category) => {
           const categoryIndex = courseCategories.findIndex((item) => item.title === category.title);
@@ -1105,7 +1101,6 @@ function CoursesPage() {
     <div className="courses-page">
       <Header />
       <main>
-        <AcademyHeroCarousel />
         <section className="section courses-section" id="courses">
           <div className="container">
             <CourseCatalog showHeading={false} />
@@ -1379,9 +1374,18 @@ function PortfolioCard({ project, index, onOpen }) {
   );
 }
 
+function BrandStickerField({ className = "" }) {
+  return (
+    <div className={`brand-sticker-field ${className}`.trim()} aria-hidden="true">
+      {Array.from({ length: 32 }, (_, index) => <span key={index} />)}
+    </div>
+  );
+}
+
 function Footer() {
   return (
     <footer className="footer">
+      <BrandStickerField className="footer-sticker-field" />
       <div className="container footer-grid">
         <div className="footer-brand">
           <BrandMark light />
@@ -1886,6 +1890,7 @@ function HomePage() {
           <div className="container">
             <SectionHeading
               eyebrow="What I do"
+              eyebrowClassName="eyebrow-pill"
               title={<>Everything your book needs to <span className="orange-text">fly further<span className="black-punctuation">.</span></span></>}
               copy="Creative and practical support for authors at every stage, made personal and refreshingly straightforward."
             />
@@ -1938,9 +1943,9 @@ function HomePage() {
             <span />
           </div>
           <div className="container">
-            <p className="eyebrow light-eyebrow">One vision, four destinations</p>
+            <p className="eyebrow light-eyebrow eyebrow-pill">One vision, four destinations</p>
             <div className="brands-intro">
-              <h2>Meet the Danajet brands.</h2>
+              <h2>Meet the Danajet group<span className="orange-text">.</span></h2>
               <p>Publishing is where we begin. Learning, media, and future innovation are where the journey continues.</p>
             </div>
             <div className="brand-grid">
@@ -1962,6 +1967,7 @@ function HomePage() {
           <div className="container">
             <SectionHeading
               eyebrow="Featured books"
+              eyebrowClassName="eyebrow-pill"
               title={<>Fresh stories. <span className="orange-text">Beautifully made.</span></>}
               copy="Explore books designed to inform, inspire, and stay with you long after the final page."
               action={<a className="text-link" href="/shop">Visit the shop <ArrowRight size={17} /></a>}
@@ -1977,7 +1983,7 @@ function HomePage() {
           <div className="container">
             <div className="services-layout">
               <div className="services-sticky">
-                <p className="eyebrow">BookLab services</p>
+                <p className="eyebrow eyebrow-pill">BookLab services</p>
                 <h2>Your story deserves a <span className="orange-text">polished arrival</span>.</h2>
                 <p>From raw manuscript to reader-ready book, choose the support you need or bring the whole project aboard.</p>
                 <a className="button" href="/request-project">Request a Project <ArrowRight size={17} /></a>
@@ -2000,6 +2006,7 @@ function HomePage() {
           <div className="container">
             <SectionHeading
               eyebrow="Featured work"
+              eyebrowClassName="eyebrow-pill"
               title={<>A glimpse of work, <span className="orange-text">made to stand out.</span></>}
               copy="A small selection from the full Danajet portfolio across publishing, content, and document design."
               action={<a className="button button-outline" href="/portfolio">View Full Portfolio <ArrowRight size={17} /></a>}
@@ -2037,8 +2044,8 @@ function HomePage() {
         <section className="final-cta" id="contact">
           <FlightPath variant="hero" tone="dark" />
           <div className="container final-cta-inner">
-            <p className="eyebrow">Your next chapter starts here</p>
-            <h2>Ready to bring your book ideas to life?</h2>
+            <p className="eyebrow eyebrow-pill">Your next chapter starts here</p>
+            <h2>Ready to bring your <span className="orange-text">book ideas</span> to life?</h2>
             <p>Tell me what you're creating, where you are in the process, and where you want your book to go.</p>
             <div className="hero-actions">
               <a className="button" href="/request-project">Start a Project <Send size={17} /></a>
@@ -2049,6 +2056,7 @@ function HomePage() {
       </main>
 
       <footer className="footer">
+        <BrandStickerField className="footer-sticker-field" />
         <div className="container footer-grid">
           <div className="footer-brand">
             <BrandMark light />
