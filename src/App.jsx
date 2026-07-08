@@ -158,8 +158,8 @@ function FlightPath({ variant = "wide", tone = "dark" }) {
 
 const navItems = [
   { label: "Home", href: "/#home" },
-  { label: "About", href: "/about", children: ["About Danajet", "Testimonials", "Transport"] },
-  { label: "BookLab", href: "/#services", children: [{ label: "Services", href: "/#services" }, { label: "Request a Project", href: "/request-project" }] },
+  { label: "About", href: "/about", children: [{ label: "About Danajet", href: "/about" }, { label: "Testimonials", href: "/reviews" }, { label: "Transport", href: "/transport" }] },
+  { label: "BookLab", href: "/#booklab-services", children: [{ label: "Services", href: "/#booklab-services" }, { label: "Request a Project", href: "/request-project" }] },
   { label: "Portfolio", href: "/portfolio", children: [{ label: "View Portfolio", href: "/portfolio" }, { label: "Shop on Amazon", href: "#amazon" }] },
   { label: "Shop", href: "/shop" },
   { label: "Academy", href: "/courses", children: ["Courses & Tutorials", "Community", "Free Resources"] },
@@ -195,10 +195,10 @@ const whatIDo = [
 ];
 
 const brands = [
-  { icon: BookOpen, name: "BookLab", copy: "Book design, formatting & publishing", code: "DL" },
-  { icon: Play, name: "Media", copy: "Storytelling, YouTube & content", code: "DM" },
-  { icon: Layers3, name: "Academy", copy: "Courses & learning resources", code: "DA" },
-  { icon: Plane, name: "Transport", copy: "A future-facing transport vision", code: "DT" },
+  { icon: BookOpen, name: "BookLab", copy: "Book design, formatting & publishing", code: "DL", href: "/request-project" },
+  { icon: Play, name: "Media", copy: "Storytelling, YouTube & content", code: "DM", href: "/request-project" },
+  { icon: Layers3, name: "Academy", copy: "Courses & learning resources", code: "DA", href: "/courses" },
+  { icon: Plane, name: "Transport", copy: "A future-facing transport vision", code: "DT", href: "/transport" },
 ];
 
 const books = [
@@ -1399,8 +1399,8 @@ function Footer() {
           </div>
         </div>
         <div><h3>Explore</h3><a href="/about">About</a><a href="/shop">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="/#brands">Media</a><a href="/reviews">Testimonials</a></div>
-        <div><h3>BookLab</h3><a href="/#services">Book formatting</a><a href="/#services">Book design</a><a href="/#services">KDP support</a><a href="/#services">EPUB formatting</a><a href="/portfolio">Portfolio</a></div>
-        <div><h3>More Services</h3><a href="/#services">Children's books</a><a href="/#services">Workbook design</a><a href="/#services">A+ content design</a><a href="/#services">Book trailers</a></div>
+        <div><h3>BookLab</h3><a href="/#booklab-services">Book formatting</a><a href="/#booklab-services">Book design</a><a href="/#booklab-services">KDP support</a><a href="/#booklab-services">EPUB formatting</a><a href="/portfolio">Portfolio</a></div>
+        <div><h3>More Services</h3><a href="/#booklab-services">Children's books</a><a href="/#booklab-services">Workbook design</a><a href="/#booklab-services">A+ content design</a><a href="/#booklab-services">Book trailers</a></div>
         <div><h3>Contact</h3><a href="/contact">Contact page</a><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="/contact#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
       </div>
       <div className="container footer-bottom">
@@ -1447,7 +1447,6 @@ function AboutStory() {
       <div className="about-content">
         <div className="about-intro">
           <p className="eyebrow">About Daniel & Danajet</p>
-          <h2>Built for authors, learners, and ideas ready for the world.</h2>
           <p className="about-lede">I'm Daniel, the founder and creative mind behind Danajet. My work brings together book design, publishing support, storytelling, education, and long-term innovation under one clear creative vision.</p>
         </div>
 
@@ -1847,6 +1846,68 @@ function ContactPage() {
   );
 }
 
+function TransportPage() {
+  const [email, setEmail] = useState("");
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    setIsSubmitted(true);
+  };
+
+  return (
+    <div className="transport-page">
+      <Header />
+      <main>
+        <section className="transport-hero">
+          <FlightPath variant="wide" tone="orange" />
+          <div className="container transport-hero-inner">
+            <div className="transport-hero-kicker">
+              <a className="portfolio-back" href="/"><ArrowRight size={16} /> Back to home</a>
+              <p className="eyebrow">Danajet Transport</p>
+            </div>
+            <div className="transport-hero-grid">
+              <div className="transport-intro">
+                <h1>Preparing for <span className="orange-text">Takeoff</span><span className="theme-stop">.</span></h1>
+                <p><strong>Danajet Transport</strong> is currently under development. We're working to build reliable, innovative transportation solutions for the future.</p>
+                <p><strong>The journey begins soon.</strong></p>
+              </div>
+              <div className="transport-signup">
+                <p className="eyebrow">Join the Journey</p>
+                <h2>Be the first to know when <span className="orange-text">Danajet Transport</span> officially launches.</h2>
+                <form className="transport-form" onSubmit={handleSubmit}>
+                  {isSubmitted ? (
+                    <div className="transport-success">
+                      <PackageCheck size={26} />
+                      <strong>You're on the launch list.</strong>
+                      <span>We'll let you know when Danajet Transport is ready for takeoff.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="form-field">
+                        <span>Email address</span>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(event) => setEmail(event.target.value)}
+                          placeholder="Enter your email address"
+                          required
+                        />
+                      </label>
+                      <button className="button" type="submit">Notify Me <Send size={17} /></button>
+                    </>
+                  )}
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 function HomePage() {
   return (
     <div>
@@ -1896,7 +1957,7 @@ function HomePage() {
             />
             <div className="service-grid">
               {whatIDo.map(({ icon: Icon, ...item }) => (
-                <a className="service-card" href="#services" key={item.title}>
+                <a className="service-card" href="#booklab-services" key={item.title}>
                   <div className="card-top"><span>{item.number}</span><Icon size={25} /></div>
                   <h3>{item.title}</h3>
                   <p>{item.copy}</p>
@@ -1950,7 +2011,7 @@ function HomePage() {
             </div>
             <div className="brand-grid">
               {brands.map(({ icon: Icon, ...brand }) => (
-                <a href="/request-project" className="brand-card" key={brand.name}>
+                <a href={brand.href} className="brand-card" key={brand.name}>
                   <span className="brand-code">{brand.code}</span>
                   <Icon size={30} />
                   <h3>Danajet-{brand.name}</h3>
@@ -1978,7 +2039,7 @@ function HomePage() {
           </div>
         </section>
 
-        <section className="section services-section" id="services">
+        <section className="section services-section" id="booklab-services">
           <FlightPath variant="services" tone="dark" />
           <div className="container">
             <div className="services-layout">
@@ -2028,8 +2089,8 @@ function HomePage() {
             <div className="testimonial-grid">
               {testimonials.slice(0, 3).map((testimonial) => (
                 <article className="testimonial-card" key={testimonial.name}>
-                  <Quote size={32} />
-                  <p>{testimonial.quote}</p>
+                  <span className="testimonial-stars" aria-label="5 star review">★★★★★</span>
+                  <p>&quot;{testimonial.quote}&quot;</p>
                   <div className="testimonial-person">
                     <ReviewerAvatar review={testimonial} />
                     <div><strong>{testimonial.name}</strong><small>{testimonial.role}</small></div>
@@ -2070,8 +2131,8 @@ function HomePage() {
             </div>
           </div>
           <div><h3>Explore</h3><a href="/about">About</a><a href="#books">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="#brands">Media</a><a href="#testimonials">Testimonials</a></div>
-          <div><h3>BookLab</h3><a href="#services">Book formatting</a><a href="#services">Book design</a><a href="#services">KDP support</a><a href="#services">EPUB formatting</a><a href="#portfolio">Portfolio</a></div>
-          <div><h3>More Services</h3><a href="#services">Children's books</a><a href="#services">Workbook design</a><a href="#services">A+ content design</a><a href="#services">Book trailers</a></div>
+          <div><h3>BookLab</h3><a href="#booklab-services">Book formatting</a><a href="#booklab-services">Book design</a><a href="#booklab-services">KDP support</a><a href="#booklab-services">EPUB formatting</a><a href="#portfolio">Portfolio</a></div>
+          <div><h3>More Services</h3><a href="#booklab-services">Children's books</a><a href="#booklab-services">Workbook design</a><a href="#booklab-services">A+ content design</a><a href="#booklab-services">Book trailers</a></div>
           <div><h3>Contact</h3><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
         </div>
         <div className="container footer-bottom">
@@ -2156,10 +2217,7 @@ function PortfolioPage() {
 }
 
 function ReviewsPage() {
-  const [activeReviewCategory, setActiveReviewCategory] = useState("all");
-  const visibleReviews = activeReviewCategory === "all"
-    ? testimonials
-    : testimonials.filter((review) => review.service === activeReviewCategory);
+  const visibleReviews = testimonials;
 
   return (
     <div className="reviews-page">
@@ -2184,23 +2242,6 @@ function ReviewsPage() {
 
         <section className="section reviews-collection">
           <div className="container">
-            <div className="reviews-toolbar">
-              <div className="review-filters" aria-label="Filter client reviews">
-                {reviewCategories.map((category) => (
-                  <button
-                    className={activeReviewCategory === category.id ? "is-active" : ""}
-                    type="button"
-                    aria-pressed={activeReviewCategory === category.id}
-                    onClick={() => setActiveReviewCategory(category.id)}
-                    key={category.id}
-                  >
-                    {category.label}
-                  </button>
-                ))}
-              </div>
-              <span>{visibleReviews.length} client stories</span>
-            </div>
-
             <div className="reviews-grid">
               {visibleReviews.map((review) => (
                 <article className="review-card" key={review.name}>
@@ -2221,6 +2262,29 @@ function ReviewsPage() {
                   )}
                 </article>
               ))}
+            </div>
+            <div className="reviews-carousel" aria-label="Client reviews carousel">
+              <div className="reviews-carousel-track">
+                {[...visibleReviews, ...visibleReviews].map((review, index) => (
+                  <article className="review-card" key={`${review.name}-carousel-${index}`}>
+                    <div className="review-card-top">
+                      <span className="reviews-stars">★★★★★</span>
+                    </div>
+                    <blockquote>{review.quote}</blockquote>
+                    <div className="testimonial-person">
+                      <ReviewerAvatar review={review} />
+                      <div><strong>{review.name}</strong><small>{review.role}</small></div>
+                    </div>
+                    {review.ctaUrl ? (
+                      <a className="review-link" href={review.ctaUrl} target="_blank" rel="noreferrer">
+                        {review.ctaLabel} <ArrowRight size={15} />
+                      </a>
+                    ) : (
+                      <span className="review-link review-link-disabled">{review.ctaLabel}</span>
+                    )}
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -3687,6 +3751,10 @@ function App() {
   if (path === "/contact") {
     document.title = "Contact | Danajet";
     return <ContactPage />;
+  }
+  if (path === "/transport") {
+    document.title = "Danajet Transport | Preparing for Takeoff";
+    return <TransportPage />;
   }
   if (path === "/reviews") {
     document.title = "Client Reviews | Danajet";
