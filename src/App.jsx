@@ -99,6 +99,11 @@ const Search = LucideSearch;
 const Send = LucideSend;
 const Sparkles = LucideSparkles;
 const Star = LucideStar;
+const Tiktok = (props) => (
+  <BrandIcon label="TikTok" {...props}>
+    <path d="M15.53 3.05c.31 2.55 1.74 4.05 4.21 4.21v2.92a7.13 7.13 0 0 1-4.16-1.28v6.02c0 3.05-1.84 6.03-5.67 6.03-3.62 0-5.65-2.63-5.65-5.27 0-3.34 2.68-5.42 6.14-5.11v3.04c-1.52-.24-2.96.46-2.96 2.02 0 1.22.94 2.12 2.2 2.12 1.66 0 2.44-1.03 2.44-2.9V3.05h3.45Z" />
+  </BrandIcon>
+);
 const X = LucideX;
 const Youtube = (props) => (
   <BrandIcon label="YouTube" {...props}>
@@ -511,7 +516,7 @@ function ReviewerAvatar({ review }) {
 function BrandMark({ light = false }) {
   return (
     <a className={`brand ${light ? "brand-light" : ""}`} href="/" aria-label="Danajet home">
-      <img src="/assets/danajet-logo-black-clean.png" alt="Danajet" />
+      <img src={light ? "/assets/danajet-group-footer-logo-transparent.png" : "/assets/danajet-logo-black-clean.png"} alt="Danajet" />
     </a>
   );
 }
@@ -1052,7 +1057,7 @@ function ShopPage() {
         <section className="section shop-catalog" id="books">
           <div className="container">
             <div className="shop-catalog-heading">
-              <div><p className="eyebrow">Browse the collection</p><h2>Find your next good read.</h2></div>
+              <div><p className="eyebrow">Browse the collection</p><h2>Find your next <span className="orange-text">good read</span>.</h2></div>
               <p>{filteredProducts.length} products</p>
             </div>
             <div className="shop-toolbar">
@@ -1396,6 +1401,7 @@ function Footer() {
             <a href="#instagram" aria-label="Instagram"><Instagram /></a>
             <a href="#facebook" aria-label="Facebook"><Facebook /></a>
             <a href="#linkedin" aria-label="LinkedIn"><Linkedin /></a>
+            <a href="#tiktok" aria-label="TikTok"><Tiktok /></a>
           </div>
         </div>
         <div><h3>Explore</h3><a href="/about">About</a><a href="/shop">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="/#brands">Media</a><a href="/reviews">Testimonials</a></div>
@@ -1404,7 +1410,7 @@ function Footer() {
         <div><h3>Contact</h3><a href="/contact">Contact page</a><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="/contact#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
       </div>
       <div className="container footer-bottom">
-        <p>© 2026 Danajet Nig.Ltd.All Rights Reserved.</p>
+        <p>© 2026 Danajet Nig. Ltd. All Rights Reserved.</p>
         <div><a href="#privacy">Privacy Policy</a><a href="#terms">Terms & Conditions</a></div>
       </div>
     </footer>
@@ -1434,12 +1440,19 @@ function AboutStory() {
   return (
     <div className="about-story">
       <aside className="about-profile-panel">
-        <div className="about-photo">
-          <img src="/assets/danajet-about-cutout.png" alt="Daniel, founder of Danajet" />
+        <div className="about-video-placeholder" aria-label="Danajet brand introduction video placeholder">
+          <div className="about-video-screen">
+            <span className="about-video-play"><Play size={34} fill="currentColor" /></span>
+            <div>
+              <small>Coming soon</small>
+              <strong>Brand intro video</strong>
+              <p>30-60 seconds introducing Danajet, the mission, and the creative work behind the brand.</p>
+            </div>
+          </div>
         </div>
         <div className="about-profile-note">
           <span>Founder and Creative Lead</span>
-          <strong>Daniel - Danajet</strong>
+          <strong>Daniel - Ajetunmobi</strong>
           <p>Helping authors, learners, and creative brands turn ideas into polished work.</p>
         </div>
       </aside>
@@ -1452,11 +1465,11 @@ function AboutStory() {
 
         <div className="about-body-grid">
           <div className="about-main-copy">
-            <p>My journey started with a passion for creativity, storytelling, and helping ideas come to life. What began as a love for designing and creating has grown into a brand dedicated to helping authors transform their manuscripts into professional, publish-ready books.</p>
+            <p>My journey started with a passion for creativity, storytelling, and helping ideas come to life. <strong>The name "Danajet" was born by combining "Dan" from my first name, Daniel, and "Ajet" from my surname, Ajetunmobi.</strong> More than just a name, it represents my belief that great ideas deserve the opportunity to take flight. What began as a love for designing and creating has grown into a brand dedicated to helping authors transform their manuscripts into professional, publish-ready books.</p>
             <p>Danajet is more than one service. It is a growing ecosystem for creativity, education, media, and future innovation, with each part created to help people present their work with more confidence and clarity.</p>
             <blockquote>
               <span>Core belief</span>
-              Great ideas deserve to be seen, experienced, and shared with the world.
+              <strong>Great ideas deserve to be seen, experienced, and shared with the world.</strong>
             </blockquote>
             <p>Whether you're an author with a manuscript waiting to become a beautiful book, a learner seeking new skills, or a reader exploring my creations, I invite you to be part of the <strong>Danajet journey.</strong></p>
           </div>
@@ -1464,6 +1477,7 @@ function AboutStory() {
           <div className="about-side-note">
             <span>What guides the work</span>
             <p>Clean design, useful storytelling, practical education, and professional delivery from concept to final presentation.</p>
+            <p className="collaboration-note">🤝 Open to freelance, contract, and long-term creative collaborations.</p>
           </div>
         </div>
 
@@ -1510,11 +1524,11 @@ function AboutPage() {
             <AboutStory />
           </div>
         </section>
-        <section className="final-cta">
+        <section className="final-cta about-final-cta">
           <FlightPath variant="hero" tone="dark" />
           <div className="container final-cta-inner">
-            <p className="eyebrow">Your next chapter starts here</p>
-            <h2>Ready to create something meaningful?</h2>
+            <p className="eyebrow eyebrow-pill">Your next chapter starts here</p>
+            <h2>Ready to create something meaningful<span className="question-mark">?</span></h2>
             <a className="button" href="/request-project">Request a Project <Send size={17} /></a>
           </div>
         </section>
@@ -1537,16 +1551,6 @@ function RequestProjectPage() {
     <div className="request-page">
       <Header />
       <main>
-        <section className="request-hero">
-          <FlightPath variant="wide" tone="dark" />
-          <div className="container request-hero-inner">
-            <a className="portfolio-back" href="/"><ArrowRight size={16} /> Back to home</a>
-            <p className="eyebrow">Danajet BookLab request form</p>
-            <h1>Let's Make Your Book <em>Soar.</em></h1>
-            <p>Ready to turn your manuscript into a professional, publish-ready book? Tell me about your project below, and let's begin the journey together.</p>
-          </div>
-        </section>
-
         <section className="section request-section">
           <div className="container request-layout">
             <aside className="request-sidebar">
@@ -1729,9 +1733,9 @@ function ContactPage() {
   ];
   const contactDetails = [
     { label: "Email", value: "hello@danajet.com", href: "mailto:hello@danajet.com" },
-    { label: "WhatsApp", value: "Message Danajet", href: "#whatsapp", id: "whatsapp" },
-    { label: "Availability", value: "Monday to Friday" },
-    { label: "Response", value: "Usually within 1-2 business days" },
+    { label: "WhatsApp", value: "Chat with Danajet", href: "#whatsapp", id: "whatsapp" },
+    { label: "Availability", value: "Monday - Sunday" },
+    { label: "Response Time", value: "Usually within 1 - 3 hours" },
   ];
 
   const handleSubmit = (event) => {
@@ -1789,6 +1793,7 @@ function ContactPage() {
                 <p>Use the project request form when you already know the service, book size, budget, timeline, or manuscript status.</p>
                 <a href="/request-project">Go to request form <ArrowRight size={15} /></a>
               </div>
+              <p className="collaboration-note">🤝 Open to freelance, contract, and long-term creative collaborations.</p>
             </aside>
 
             {isSubmitted ? (
@@ -1868,7 +1873,7 @@ function TransportPage() {
             </div>
             <div className="transport-hero-grid">
               <div className="transport-intro">
-                <h1>Preparing for <span className="orange-text">Takeoff</span><span className="theme-stop">.</span></h1>
+                <h1>Preparing for <span className="orange-text">Takeoff</span></h1>
                 <p><strong>Danajet Transport</strong> is currently under development. We're working to build reliable, innovative transportation solutions for the future.</p>
                 <p><strong>The journey begins soon.</strong></p>
               </div>
@@ -2084,13 +2089,13 @@ function HomePage() {
           <FlightPath variant="corner" tone="light" />
           <div className="container">
             <div className="testimonial-heading">
-              <h2>Kind words from people whose ideas took flight.</h2>
+              <h2>Kind words from people whose ideas <span>took flight.</span></h2>
             </div>
-            <div className="testimonial-grid">
+            <div className="testimonial-grid" aria-label="Featured client testimonials">
               {testimonials.slice(0, 3).map((testimonial) => (
                 <article className="testimonial-card" key={testimonial.name}>
                   <span className="testimonial-stars" aria-label="5 star review">★★★★★</span>
-                  <p>&quot;{testimonial.quote}&quot;</p>
+                  <p>“{testimonial.quote}”</p>
                   <div className="testimonial-person">
                     <ReviewerAvatar review={testimonial} />
                     <div><strong>{testimonial.name}</strong><small>{testimonial.role}</small></div>
@@ -2128,6 +2133,7 @@ function HomePage() {
               <a href="#instagram" aria-label="Instagram"><Instagram /></a>
               <a href="#facebook" aria-label="Facebook"><Facebook /></a>
               <a href="#linkedin" aria-label="LinkedIn"><Linkedin /></a>
+              <a href="#tiktok" aria-label="TikTok"><Tiktok /></a>
             </div>
           </div>
           <div><h3>Explore</h3><a href="/about">About</a><a href="#books">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="#brands">Media</a><a href="#testimonials">Testimonials</a></div>
@@ -2136,7 +2142,7 @@ function HomePage() {
           <div><h3>Contact</h3><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
         </div>
         <div className="container footer-bottom">
-          <p>© 2026 Danajet Nig.Ltd.All Rights Reserved.</p>
+          <p>© 2026 Danajet Nig. Ltd. All Rights Reserved.</p>
           <div><a href="#privacy">Privacy Policy</a><a href="#terms">Terms & Conditions</a></div>
         </div>
       </footer>
@@ -2157,9 +2163,11 @@ function PortfolioPage() {
       <main>
         <section className="portfolio-page-hero">
           <div className="container">
-            <a className="portfolio-back" href="/"><ArrowRight size={16} /> Back to home</a>
-            <p className="eyebrow">Danajet portfolio</p>
-            <h1>Books made to <em>stand out.</em></h1>
+            <div className="portfolio-hero-kicker">
+              <a className="portfolio-back" href="/"><ArrowRight size={16} /> Back to home</a>
+              <p className="eyebrow">Danajet portfolio</p>
+            </div>
+            <h1>Books made to <em>stand out<span className="portfolio-contrast-stop">.</span></em></h1>
             <p>Explore selected client projects across book covers, interiors, activity books, workbooks, EPUB layouts, A+ content, and professional PDF design.</p>
           </div>
         </section>
@@ -2218,6 +2226,21 @@ function PortfolioPage() {
 
 function ReviewsPage() {
   const visibleReviews = testimonials;
+  const [activeReviewIndex, setActiveReviewIndex] = useState(0);
+
+  useEffect(() => {
+    if (!visibleReviews.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => {
+      setActiveReviewIndex((currentIndex) => (currentIndex + 1) % visibleReviews.length);
+    }, 5200);
+
+    return () => window.clearInterval(interval);
+  }, [visibleReviews.length]);
+
+  const activeReview = visibleReviews[activeReviewIndex] || visibleReviews[0];
 
   return (
     <div className="reviews-page">
@@ -2248,7 +2271,7 @@ function ReviewsPage() {
                   <div className="review-card-top">
                     <span className="reviews-stars">★★★★★</span>
                   </div>
-                  <blockquote>{review.quote}</blockquote>
+                  <blockquote>“{review.quote}”</blockquote>
                   <div className="testimonial-person">
                     <ReviewerAvatar review={review} />
                     <div><strong>{review.name}</strong><small>{review.role}</small></div>
@@ -2264,27 +2287,38 @@ function ReviewsPage() {
               ))}
             </div>
             <div className="reviews-carousel" aria-label="Client reviews carousel">
-              <div className="reviews-carousel-track">
-                {[...visibleReviews, ...visibleReviews].map((review, index) => (
-                  <article className="review-card" key={`${review.name}-carousel-${index}`}>
+              {activeReview ? (
+                <>
+                  <article className="review-card reviews-carousel-card" key={activeReview.name}>
                     <div className="review-card-top">
                       <span className="reviews-stars">★★★★★</span>
                     </div>
-                    <blockquote>{review.quote}</blockquote>
+                    <blockquote>“{activeReview.quote}”</blockquote>
                     <div className="testimonial-person">
-                      <ReviewerAvatar review={review} />
-                      <div><strong>{review.name}</strong><small>{review.role}</small></div>
+                      <ReviewerAvatar review={activeReview} />
+                      <div><strong>{activeReview.name}</strong><small>{activeReview.role}</small></div>
                     </div>
-                    {review.ctaUrl ? (
-                      <a className="review-link" href={review.ctaUrl} target="_blank" rel="noreferrer">
-                        {review.ctaLabel} <ArrowRight size={15} />
+                    {activeReview.ctaUrl ? (
+                      <a className="review-link" href={activeReview.ctaUrl} target="_blank" rel="noreferrer">
+                        {activeReview.ctaLabel} <ArrowRight size={15} />
                       </a>
                     ) : (
-                      <span className="review-link review-link-disabled">{review.ctaLabel}</span>
+                      <span className="review-link review-link-disabled">{activeReview.ctaLabel}</span>
                     )}
                   </article>
-                ))}
-              </div>
+                  <div className="reviews-carousel-dots" aria-label="Review carousel progress">
+                    {visibleReviews.map((review, index) => (
+                      <button
+                        aria-label={`Show review from ${review.name}`}
+                        className={index === activeReviewIndex ? "is-active" : ""}
+                        key={`${review.name}-dot`}
+                        onClick={() => setActiveReviewIndex(index)}
+                        type="button"
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         </section>
@@ -2355,7 +2389,7 @@ const adminAboutDefaults = {
   headline: "A creative ecosystem for authors, learning, media, and bold future ideas.",
   founderBio: "Daniel helps authors transform book ideas into polished, publish-ready projects with thoughtful design, formatting, and publishing support.",
   story: "Danajet began as a personal creative service and is growing into BookLab, Media, Academy, and future transport innovation.",
-  image: "/assets/DANAJET_ABOUT.png",
+  video: "/assets/about-brand-intro.mp4",
   statOne: "100+ books supported",
   statTwo: "Global author clients",
   statThree: "Design, publishing, and media",
@@ -2390,7 +2424,7 @@ const adminSiteDefaults = {
 
 const adminMediaDefaults = [
   { id: "media-hero", title: "Hero cutout", type: "Image", path: "/assets/hero-books-cutout.png", usage: "Homepage hero" },
-  { id: "media-about", title: "Danajet about image", type: "Image", path: "/assets/DANAJET_ABOUT.png", usage: "About page" },
+  { id: "media-about", title: "Danajet about intro video", type: "Video", path: "/assets/about-brand-intro.mp4", usage: "About page video placeholder" },
   { id: "media-sticker", title: "Sticker tile", type: "Image", path: "/assets/sticker.png", usage: "Brand section background" },
   { id: "media-review", title: "Reviewer headshots", type: "Folder", path: "/assets/reviews/", usage: "Reviews" },
 ];
@@ -3328,13 +3362,13 @@ function AdminDashboardPage() {
       <AdminTextControlPanel
         eyebrow="About page"
         title="Founder story and page content"
-        copy="Edit the About page heading, founder bio, story copy, stats, and image path."
+        copy="Edit the About page heading, founder bio, story copy, stats, and brand intro video path as a local draft until backend uploads are wired."
         values={adminAbout}
         onUpdate={(key, value) => setAdminAbout((current) => ({ ...current, [key]: value }))}
         onSave={() => showAdminNotice("About page draft saved locally.")}
         fields={[
           { key: "eyebrow", label: "Eyebrow" },
-          { key: "image", label: "About Image Path" },
+          { key: "video", label: "Brand Intro Video Path / URL", wide: true },
           { key: "headline", label: "Headline", wide: true },
           { key: "founderBio", label: "Founder Bio", type: "textarea", wide: true },
           { key: "story", label: "Brand Story", type: "textarea", wide: true },
@@ -3713,8 +3747,26 @@ function AdminDashboardPage() {
   );
 }
 
+function useHashScroll() {
+  useEffect(() => {
+    const scrollToHash = () => {
+      if (!window.location.hash) return;
+
+      const targetId = decodeURIComponent(window.location.hash.slice(1));
+      window.requestAnimationFrame(() => {
+        document.getElementById(targetId)?.scrollIntoView({ block: "start" });
+      });
+    };
+
+    scrollToHash();
+    window.addEventListener("hashchange", scrollToHash);
+    return () => window.removeEventListener("hashchange", scrollToHash);
+  }, []);
+}
+
 function App() {
   useScrollReveal();
+  useHashScroll();
 
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   const productMatch = path.match(/^\/shop\/([^/]+)$/);
