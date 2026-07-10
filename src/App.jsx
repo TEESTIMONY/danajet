@@ -1606,10 +1606,113 @@ function CartPage() {
               <div><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div>
               <div><span>Estimated shipping</span><strong>{estimatedShipping ? `$${estimatedShipping.toFixed(2)}` : "$0.00"}</strong></div>
               <div className="cart-total"><span>Estimated total</span><strong>${estimatedTotal.toFixed(2)}</strong></div>
-              <button className="button" type="button" disabled={!cart.length}>Checkout Soon <ArrowRight size={17} /></button>
-              <p>Secure checkout details will appear when your order is ready.</p>
+              <a className={`button ${!cart.length ? "is-disabled" : ""}`} href={cart.length ? "/checkout" : undefined} aria-disabled={!cart.length}>Checkout <ArrowRight size={17} /></a>
+              <a className="button button-outline continue-shopping-button" href="/shop">Continue Shopping <ArrowRight size={17} /></a>
               {cart.length > 0 && <button className="cart-clear-button" type="button" onClick={handleClear}>Clear Shopping Bag</button>}
             </aside>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function CheckoutPage() {
+  const [cart, setCart] = useState(() => readCart().map(getCartDisplayItem));
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const subtotal = cart.reduce((total, item) => total + Number(item.price || 0) * item.quantity, 0);
+  const estimatedShipping = cart.length ? 5.99 : 0;
+  const estimatedTotal = subtotal + estimatedShipping;
+  const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
+
+  useEffect(() => {
+    const updateCart = () => setCart(readCart().map(getCartDisplayItem));
+    window.addEventListener("danajet-cart-updated", updateCart);
+    return () => window.removeEventListener("danajet-cart-updated", updateCart);
+  }, []);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    setIsSubmitted(true);
+  };
+
+  return (
+    <div className="checkout-page">
+      <Header />
+      <main>
+        <section className="cart-hero checkout-hero">
+          <div className="container cart-hero-inner">
+            <h1><ShoppingBag size={34} /> Checkout</h1>
+            <span>{itemCount} items</span>
+          </div>
+        </section>
+
+        <section className="section checkout-section">
+          <div className="container checkout-layout">
+            {cart.length ? (
+              <>
+                <form className="checkout-form" onSubmit={handleSubmit}>
+                  {isSubmitted ? (
+                    <div className="checkout-success">
+                      <PackageCheck size={34} />
+                      <p className="eyebrow">Checkout received</p>
+                      <h2>We have your order details.</h2>
+                      <p>Thank you. Danajet will review your order and follow up with the next step.</p>
+                      <a className="button" href="/">Back Home <ArrowRight size={17} /></a>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="checkout-form-heading">
+                        <p className="eyebrow">Customer details</p>
+                        <h2>Complete your order.</h2>
+                      </div>
+                      <div className="checkout-grid">
+                        <label>First name<input name="firstName" autoComplete="given-name" required /></label>
+                        <label>Last name<input name="lastName" autoComplete="family-name" required /></label>
+                        <label>Email address<input name="email" type="email" autoComplete="email" required /></label>
+                        <label>Phone number<input name="phone" type="tel" autoComplete="tel" /></label>
+                        <label className="checkout-wide">Street address<input name="address" autoComplete="street-address" required /></label>
+                        <label>City<input name="city" autoComplete="address-level2" required /></label>
+                        <label>State / Region<input name="state" autoComplete="address-level1" required /></label>
+                        <label>Postal code<input name="postalCode" autoComplete="postal-code" required /></label>
+                        <label>Country<input name="country" autoComplete="country-name" required /></label>
+                        <label className="checkout-wide">Order notes<textarea name="notes" placeholder="Delivery notes, project notes, or anything else we should know." /></label>
+                      </div>
+                      <div className="checkout-payment-panel">
+                        <p className="eyebrow">Payment</p>
+                        <strong>Payment details will be confirmed after your order is reviewed.</strong>
+                      </div>
+                      <button className="button" type="submit">Place Order <ArrowRight size={17} /></button>
+                    </>
+                  )}
+                </form>
+
+                <aside className="checkout-summary">
+                  <p className="eyebrow">Your bag</p>
+                  <div className="checkout-summary-items">
+                    {cart.map((item) => (
+                      <div className="checkout-summary-item" key={item.id}>
+                        <span>{item.quantity}x</span>
+                        <strong>{item.title}</strong>
+                        <em>{formatPrice(item)}</em>
+                      </div>
+                    ))}
+                  </div>
+                  <div><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div>
+                  <div><span>Estimated shipping</span><strong>${estimatedShipping.toFixed(2)}</strong></div>
+                  <div className="cart-total"><span>Total</span><strong>${estimatedTotal.toFixed(2)}</strong></div>
+                  <a className="button button-outline continue-shopping-button" href="/cart">Back to Bag</a>
+                </aside>
+              </>
+            ) : (
+              <div className="cart-empty checkout-empty">
+                <ShoppingBag size={34} />
+                <h2>Your shopping bag is empty.</h2>
+                <p>Add a book or course before checkout.</p>
+                <a className="button" href="/shop">Continue Shopping <ArrowRight size={17} /></a>
+              </div>
+            )}
           </div>
         </section>
       </main>
@@ -4061,6 +4164,10 @@ function App() {
   if (path === "/cart") {
     document.title = "Shopping Bag | Danajet";
     return <CartPage />;
+  }
+  if (path === "/checkout") {
+    document.title = "Checkout | Danajet";
+    return <CheckoutPage />;
   }
   if (path === "/login") {
     document.title = "Login | Danajet";
