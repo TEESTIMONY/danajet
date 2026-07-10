@@ -670,6 +670,11 @@ function Header() {
   }, [theme]);
 
   const toggleTheme = () => setTheme((current) => (current === "dark" ? "light" : "dark"));
+  const handleSignOut = () => {
+    writeAuthUser(null);
+    setAuthUser(null);
+    setIsOpen(false);
+  };
 
   return (
     <>
@@ -750,6 +755,7 @@ function Header() {
               );
             })}
             <a href="/login" onClick={() => setIsOpen(false)}>{authUser ? "Account" : "Login"}</a>
+            {authUser && <button className="mobile-signout-button" type="button" onClick={handleSignOut}>Sign out</button>}
             <a href="/cart" onClick={() => setIsOpen(false)}>Shopping bag ({cartCount})</a>
             <a className="button" href="/request-project" onClick={() => setIsOpen(false)}>Start a Project</a>
           </nav>
@@ -1436,8 +1442,7 @@ function LoginPage() {
       signedInAt: new Date().toISOString(),
     };
     writeAuthUser(user);
-    setAuthUser(user);
-    setIsSubmitted(true);
+    window.location.replace("/");
   };
 
   const handleLogout = () => {

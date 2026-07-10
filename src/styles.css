@@ -3975,7 +3975,8 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
     animation: mobileMenuIn .28s cubic-bezier(.2, .8, .2, 1) both;
   }
   .mobile-nav > a:not(.button),
-  .mobile-nav-item > button {
+  .mobile-nav-item > button,
+  .mobile-signout-button {
     width: 100%;
     display: flex;
     align-items: center;
@@ -3990,6 +3991,10 @@ h1 em { display: block; color: var(--orange); font-style: normal; }
     font-size: 14px;
     text-align: left;
     animation: mobileMenuItemIn .32s ease both;
+  }
+  .mobile-signout-button {
+    color: var(--orange);
+    cursor: pointer;
   }
   .mobile-nav > a:nth-child(1),
   .mobile-nav-item:nth-child(1) > button { animation-delay: .03s; }
