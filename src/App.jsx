@@ -522,6 +522,7 @@ function BrandMark({ light = false }) {
 }
 
 const CART_KEY = "danajet-shop-cart";
+const AUTH_KEY = "danajet-auth-user";
 
 function readCart() {
   try {
@@ -531,6 +532,11 @@ function readCart() {
   }
 }
 
+function writeCart(cart) {
+  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  window.dispatchEvent(new Event("danajet-cart-updated"));
+}
+
 function addToCart(product, quantity = 1) {
   const cart = readCart();
   const existing = cart.find((item) => item.id === product.id);
@@ -538,11 +544,52 @@ function addToCart(product, quantity = 1) {
   if (existing) {
     existing.quantity += quantity;
   } else {
-    cart.push({ id: product.id, slug: product.slug, title: product.title, price: product.price, quantity });
+    cart.push({
+      id: product.id,
+      slug: product.slug,
+      title: product.title,
+      subtitle: product.subtitle || product.courseSubtitle || "",
+      category_label: product.category_label || product.category || "Danajet item",
+      author: product.author || "Danajet",
+      price: product.price,
+      currency: product.currency || "USD",
+      cover: product.cover || "orange",
+      accent: product.accent || "#e3450b",
+      quantity,
+    });
   }
 
-  localStorage.setItem(CART_KEY, JSON.stringify(cart));
-  window.dispatchEvent(new Event("danajet-cart-updated"));
+  writeCart(cart);
+}
+
+function updateCartQuantity(itemId, quantity) {
+  const nextQuantity = Math.max(1, Number(quantity) || 1);
+  writeCart(readCart().map((item) => (item.id === itemId ? { ...item, quantity: nextQuantity } : item)));
+}
+
+function removeFromCart(itemId) {
+  writeCart(readCart().filter((item) => item.id !== itemId));
+}
+
+function clearCart() {
+  writeCart([]);
+}
+
+function readAuthUser() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function writeAuthUser(user) {
+  if (user) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(AUTH_KEY);
+  }
+  window.dispatchEvent(new Event("danajet-auth-updated"));
 }
 
 function useScrollReveal() {
@@ -592,6 +639,10 @@ function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [openMobileDropdown, setOpenMobileDropdown] = useState(null);
   const [cartCount, setCartCount] = useState(0);
+  const [authUser, setAuthUser] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return readAuthUser();
+  });
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
     return localStorage.getItem("danajet-theme") || "light";
@@ -605,6 +656,12 @@ function Header() {
     updateCartCount();
     window.addEventListener("danajet-cart-updated", updateCartCount);
     return () => window.removeEventListener("danajet-cart-updated", updateCartCount);
+  }, []);
+
+  useEffect(() => {
+    const updateAuthUser = () => setAuthUser(readAuthUser());
+    window.addEventListener("danajet-auth-updated", updateAuthUser);
+    return () => window.removeEventListener("danajet-auth-updated", updateAuthUser);
   }, []);
 
   useEffect(() => {
@@ -641,12 +698,16 @@ function Header() {
             ))}
           </nav>
           <div className="header-actions">
-            <a className="login-link" href="#login">Login</a>
-            <a className="cart-link" href="/shop#cart" aria-label={`Shopping bag with ${cartCount} items`}>
+            <a className="login-link" href="/login">{authUser ? "Account" : "Login"}</a>
+            <a className="cart-link" href="/cart" aria-label={`Shopping bag with ${cartCount} items`}>
               <ShoppingBag size={18} /><span>{cartCount}</span>
             </a>
             <a className="button button-small" href="/request-project">Start a Project <MoveUpRight size={16} /></a>
           </div>
+          <a className="mobile-cart-link" href="/cart" aria-label={`Shopping bag with ${cartCount} items`}>
+            <ShoppingBag size={21} />
+            <span>{cartCount}</span>
+          </a>
           <button
             className="menu-button"
             type="button"
@@ -688,8 +749,8 @@ function Header() {
                 </div>
               );
             })}
-            <a href="#login" onClick={() => setIsOpen(false)}>Login</a>
-            <a href="/shop#cart" onClick={() => setIsOpen(false)}>Shopping bag ({cartCount})</a>
+            <a href="/login" onClick={() => setIsOpen(false)}>{authUser ? "Account" : "Login"}</a>
+            <a href="/cart" onClick={() => setIsOpen(false)}>Shopping bag ({cartCount})</a>
             <a className="button" href="/request-project" onClick={() => setIsOpen(false)}>Start a Project</a>
           </nav>
         )}
@@ -1336,6 +1397,214 @@ function ProductDetailPage({ slug }) {
           <div className="container">
             <div className="shop-catalog-heading"><div><p className="eyebrow">You may also like</p><h2>Keep exploring.</h2></div><a className="text-link" href="/shop">View all books <ArrowRight /></a></div>
             <div className="shop-grid">{related.map((item) => <ShopProductCard product={item} key={item.id} />)}</div>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function getCartDisplayItem(item) {
+  const product = mockProducts.find((candidate) => candidate.id === item.id || candidate.slug === item.slug);
+  return {
+    ...product,
+    ...item,
+    price: Number(item.price ?? product?.price ?? 0),
+    quantity: Number(item.quantity) || 1,
+    slug: item.slug || product?.slug || "",
+    title: item.title || product?.title || "Danajet item",
+    subtitle: item.subtitle || product?.subtitle || "",
+    category_label: item.category_label || product?.category_label || "Danajet item",
+    author: item.author || product?.author || "Danajet",
+    currency: item.currency || product?.currency || "USD",
+    cover: item.cover || product?.cover || "orange",
+    accent: item.accent || product?.accent || "#e3450b",
+  };
+}
+
+function LoginPage() {
+  const [authUser, setAuthUser] = useState(() => readAuthUser());
+  const [form, setForm] = useState({ email: authUser?.email || "", password: "" });
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const user = {
+      email: form.email.trim(),
+      name: form.email.split("@")[0] || "Danajet reader",
+      signedInAt: new Date().toISOString(),
+    };
+    writeAuthUser(user);
+    setAuthUser(user);
+    setIsSubmitted(true);
+  };
+
+  const handleLogout = () => {
+    writeAuthUser(null);
+    setAuthUser(null);
+    setForm({ email: "", password: "" });
+    setIsSubmitted(false);
+  };
+
+  return (
+    <div className="account-page">
+      <Header />
+      <main>
+        <section className="account-hero">
+          <div className="container account-layout">
+            <form className="login-panel" onSubmit={handleSubmit}>
+              {authUser ? (
+                <div className="account-signed-in">
+                  <span><PackageCheck size={24} /></span>
+                  <p>Signed in as</p>
+                  <strong>{authUser.email}</strong>
+                  {isSubmitted && <small>Welcome back to your Danajet account.</small>}
+                  <div className="account-actions">
+                    <a className="button" href="/cart">View Shopping Bag <ShoppingBag size={17} /></a>
+                    <button className="button button-outline" type="button" onClick={handleLogout}>Log Out</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <p className="eyebrow">Customer login</p>
+                    <h2>Welcome back.</h2>
+                  </div>
+                  <label>
+                    <span>Email address</span>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>Password</span>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </label>
+                  <button className="button" type="submit">Login <ArrowRight size={17} /></button>
+                  <p className="signup-prompt">Don't have an account? <button type="button">Sign up</button></p>
+                  <a className="text-link" href="/request-project">Need help with a book project? <ArrowRight size={16} /></a>
+                </>
+              )}
+            </form>
+            <aside className="account-copy account-login-copy" aria-label="Danajet member note">
+              <p className="eyebrow">Danajet Booklab</p>
+              <h1>Your book work, kept close.</h1>
+              <p>Sign in to return to your shopping bag, saved picks, and project updates in one place.</p>
+              <div className="account-login-illustration" aria-hidden="true">
+                <div className="account-login-book account-login-book-main">
+                  <span>Danajet</span>
+                  <strong>Book<br />Lab</strong>
+                </div>
+                <div className="account-login-book account-login-book-shadow">
+                  <span>Ideas</span>
+                  <strong>Draft<br />Ready</strong>
+                </div>
+                <Sparkles size={24} />
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function CartPage() {
+  const [cart, setCart] = useState(() => readCart().map(getCartDisplayItem));
+  const subtotal = cart.reduce((total, item) => total + Number(item.price || 0) * item.quantity, 0);
+  const estimatedShipping = cart.length ? 5.99 : 0;
+  const estimatedTotal = subtotal + estimatedShipping;
+
+  useEffect(() => {
+    const updateCart = () => setCart(readCart().map(getCartDisplayItem));
+    window.addEventListener("danajet-cart-updated", updateCart);
+    return () => window.removeEventListener("danajet-cart-updated", updateCart);
+  }, []);
+
+  const handleQuantityChange = (itemId, quantity) => {
+    updateCartQuantity(itemId, quantity);
+    setCart(readCart().map(getCartDisplayItem));
+  };
+
+  const handleRemove = (itemId) => {
+    removeFromCart(itemId);
+    setCart(readCart().map(getCartDisplayItem));
+  };
+
+  const handleClear = () => {
+    clearCart();
+    setCart([]);
+  };
+
+  return (
+    <div className="cart-page">
+      <Header />
+      <main>
+        <section className="cart-hero">
+          <div className="container cart-hero-inner">
+            <h1><ShoppingBag size={34} /> Shopping Bag</h1>
+            <span>{cart.reduce((total, item) => total + item.quantity, 0)} items</span>
+          </div>
+        </section>
+
+        <section className="section cart-section">
+          <div className="container cart-layout">
+            <div className="cart-items" aria-label="Shopping bag items">
+              {cart.length ? (
+                cart.map((item) => (
+                  <article className="cart-item" key={item.id}>
+                    <a className="cart-item-art" href={item.slug?.startsWith("courses/") ? `/${item.slug}` : `/shop/${item.slug}`}>
+                      <ProductArtwork product={item} />
+                    </a>
+                    <div className="cart-item-details">
+                      <p>{item.category_label}</p>
+                      <h2>{item.title}</h2>
+                      {item.subtitle && <span>{item.subtitle}</span>}
+                      <strong>{formatPrice(item)}</strong>
+                    </div>
+                    <div className="cart-item-controls">
+                      <div className="quantity-control" aria-label={`Quantity for ${item.title}`}>
+                        <button type="button" onClick={() => handleQuantityChange(item.id, item.quantity - 1)} aria-label="Decrease quantity"><Minus /></button>
+                        <span>{item.quantity}</span>
+                        <button type="button" onClick={() => handleQuantityChange(item.id, item.quantity + 1)} aria-label="Increase quantity"><Plus /></button>
+                      </div>
+                      <button className="cart-remove-button" type="button" onClick={() => handleRemove(item.id)}>
+                        <Trash2 size={15} /> Remove
+                      </button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="cart-empty">
+                  <ShoppingBag size={34} />
+                  <h2>Your shopping bag is empty.</h2>
+                  <p>Explore books, workbooks, and courses made for bright ideas and brave beginnings.</p>
+                  <a className="button" href="/shop">Start Shopping <ArrowRight size={17} /></a>
+                </div>
+              )}
+            </div>
+
+            <aside className="cart-summary">
+              <p className="eyebrow">Order summary</p>
+              <div><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div>
+              <div><span>Estimated shipping</span><strong>{estimatedShipping ? `$${estimatedShipping.toFixed(2)}` : "$0.00"}</strong></div>
+              <div className="cart-total"><span>Estimated total</span><strong>${estimatedTotal.toFixed(2)}</strong></div>
+              <button className="button" type="button" disabled={!cart.length}>Checkout Soon <ArrowRight size={17} /></button>
+              <p>Secure checkout details will appear when your order is ready.</p>
+              {cart.length > 0 && <button className="cart-clear-button" type="button" onClick={handleClear}>Clear Shopping Bag</button>}
+            </aside>
           </div>
         </section>
       </main>
@@ -3783,6 +4052,14 @@ function App() {
   if (path === "/shop") {
     document.title = "Shop Books | Danajet";
     return <ShopPage />;
+  }
+  if (path === "/cart") {
+    document.title = "Shopping Bag | Danajet";
+    return <CartPage />;
+  }
+  if (path === "/login") {
+    document.title = "Login | Danajet";
+    return <LoginPage />;
   }
   if (path === "/courses") {
     document.title = "Courses & Tutorials | Danajet Academy";
