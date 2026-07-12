@@ -39,10 +39,51 @@ import {
   Sun,
   Trash2,
   Upload,
+  UserRound as LucideUserRound,
   Users,
   X as LucideX,
 } from "lucide-react";
-import { getProduct, getProducts } from "./api/shop";
+import {
+  deleteAdminBrand,
+  deleteAdminCourse,
+  deleteAdminMedia,
+  deleteAdminPortfolio,
+  deleteAdminProduct,
+  deleteAdminReview,
+  deleteAdminShopCategory,
+  listAdminBrands,
+  listAdminCourses,
+  listAdminMedia,
+  listAdminPortfolio,
+  listAdminProducts,
+  listAdminRequests,
+  listAdminReviews,
+  listAdminSettings,
+  listAdminShopCategories,
+  saveAdminCourse,
+  saveAdminBrand,
+  saveAdminMedia,
+  saveAdminPortfolio,
+  saveAdminProduct,
+  saveAdminReview,
+  saveAdminSetting,
+  saveAdminShopCategory,
+  updateAdminProduct,
+  updateAdminRequestStatus,
+  uploadAdminMediaFile,
+} from "./api/admin";
+import { getCurrentUser, loginUser, logoutUser, registerUser } from "./api/auth";
+import {
+  addCartItem,
+  clearBackendCart,
+  getCartCount,
+  getCartDisplayItems,
+  removeCartItem,
+  submitCheckout,
+  updateCartItemQuantity,
+} from "./api/cart";
+import { resolveMediaUrl } from "./api/client";
+import { getCourse, getCourses, getProduct, getProducts, getShopCategories } from "./api/shop";
 import { mockProducts, shopCategories } from "./data/products";
 
 function BrandIcon({ label, children, className = "", size = 18 }) {
@@ -104,6 +145,7 @@ const Tiktok = (props) => (
     <path d="M15.53 3.05c.31 2.55 1.74 4.05 4.21 4.21v2.92a7.13 7.13 0 0 1-4.16-1.28v6.02c0 3.05-1.84 6.03-5.67 6.03-3.62 0-5.65-2.63-5.65-5.27 0-3.34 2.68-5.42 6.14-5.11v3.04c-1.52-.24-2.96.46-2.96 2.02 0 1.22.94 2.12 2.2 2.12 1.66 0 2.44-1.03 2.44-2.9V3.05h3.45Z" />
   </BrandIcon>
 );
+const UserRound = LucideUserRound;
 const X = LucideX;
 const Youtube = (props) => (
   <BrandIcon label="YouTube" {...props}>
@@ -206,6 +248,23 @@ const brands = [
   { icon: Plane, name: "Transport", copy: "A future-facing transport vision", code: "DT", href: "/transport" },
 ];
 
+function resolveBrandIcon(brand) {
+  const signature = `${brand.code || ""} ${brand.name || ""}`.toLowerCase();
+  if (signature.includes("media") || signature.includes("dm")) return Play;
+  if (signature.includes("academy") || signature.includes("da")) return Layers3;
+  if (signature.includes("transport") || signature.includes("dt")) return Plane;
+  return BookOpen;
+}
+
+function normalizeBrandCard(brand) {
+  return {
+    ...brand,
+    icon: brand.icon || resolveBrandIcon(brand),
+    href: brand.href || brand.link || "/request-project",
+    copy: brand.copy || brand.summary || "",
+  };
+}
+
 const books = [
   { title: "Beyond the Horizon", author: "Dana A.", color: "orange", mark: "A practical guide to courageous new beginnings" },
   { title: "The Quiet Idea", author: "M. Cole", color: "teal", mark: "How small thoughts become meaningful work" },
@@ -290,6 +349,38 @@ const featuredProjects = [
   { category: "interiors", title: "Jimmy's Sports Betting Book", image: "40" },
   { category: "pdf", title: "NLS Rwanda Educational Materials", image: "46" },
 ];
+
+function normalizeFeaturedHighlight(item, index = 0) {
+  if (item && typeof item === "object") {
+    return {
+      id: item.id || `featured-highlight-${index}`,
+      title: item.title || item.name || "",
+      imageUrl: item.imageUrl || item.image_url || item.featuredImageUrl || item.path || item.image || "",
+    };
+  }
+  return {
+    id: `featured-highlight-${index}`,
+    title: String(item || ""),
+    imageUrl: "",
+  };
+}
+
+function resolveFeaturedWorkItems(highlights = featuredWorkHighlights, portfolioItems = []) {
+  return highlights.map((highlight, index) => {
+    const normalizedHighlight = normalizeFeaturedHighlight(highlight, index);
+    const title = normalizedHighlight.title.trim();
+    const fallbackProject = featuredProjects.find((project) => project.title.toLowerCase() === title.toLowerCase()) || featuredProjects[index % featuredProjects.length];
+    return {
+      id: normalizedHighlight.id,
+      category: fallbackProject?.category || "pdf",
+      categoryLabel: "Featured work",
+      title,
+      featuredImageUrl: normalizedHighlight.imageUrl,
+      imageUrl: normalizedHighlight.imageUrl,
+      image: fallbackProject?.image || "46",
+    };
+  }).filter((project) => project.title);
+}
 
 const requestServiceOptions = [
   "Interior Book Formatting",
@@ -521,74 +612,23 @@ function BrandMark({ light = false }) {
   );
 }
 
-const CART_KEY = "danajet-shop-cart";
-const AUTH_KEY = "danajet-auth-user";
-
-function readCart() {
-  try {
-    return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-  } catch {
-    return [];
-  }
+async function addToCart(product, quantity = 1) {
+  await addCartItem(product, quantity);
 }
 
-function writeCart(cart) {
-  localStorage.setItem(CART_KEY, JSON.stringify(cart));
-  window.dispatchEvent(new Event("danajet-cart-updated"));
+async function updateCartQuantity(itemId, quantity) {
+  await updateCartItemQuantity(itemId, quantity);
 }
 
-function addToCart(product, quantity = 1) {
-  const cart = readCart();
-  const existing = cart.find((item) => item.id === product.id);
-
-  if (existing) {
-    existing.quantity += quantity;
-  } else {
-    cart.push({
-      id: product.id,
-      slug: product.slug,
-      title: product.title,
-      subtitle: product.subtitle || product.courseSubtitle || "",
-      category_label: product.category_label || product.category || "Danajet item",
-      author: product.author || "Danajet",
-      price: product.price,
-      currency: product.currency || "USD",
-      cover: product.cover || "orange",
-      accent: product.accent || "#e3450b",
-      quantity,
-    });
-  }
-
-  writeCart(cart);
+async function removeFromCart(itemId) {
+  await removeCartItem(itemId);
 }
 
-function updateCartQuantity(itemId, quantity) {
-  const nextQuantity = Math.max(1, Number(quantity) || 1);
-  writeCart(readCart().map((item) => (item.id === itemId ? { ...item, quantity: nextQuantity } : item)));
+async function clearCart() {
+  await clearBackendCart();
 }
 
-function removeFromCart(itemId) {
-  writeCart(readCart().filter((item) => item.id !== itemId));
-}
-
-function clearCart() {
-  writeCart([]);
-}
-
-function readAuthUser() {
-  try {
-    return JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
-  } catch {
-    return null;
-  }
-}
-
-function writeAuthUser(user) {
-  if (user) {
-    localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-  } else {
-    localStorage.removeItem(AUTH_KEY);
-  }
+function notifyAuthUpdated() {
   window.dispatchEvent(new Event("danajet-auth-updated"));
 }
 
@@ -638,30 +678,46 @@ function useScrollReveal() {
 function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [openMobileDropdown, setOpenMobileDropdown] = useState(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const [authUser, setAuthUser] = useState(() => {
-    if (typeof window === "undefined") return null;
-    return readAuthUser();
-  });
+  const [authUser, setAuthUser] = useState(null);
+  const accountMenuRef = useRef(null);
   const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "light";
-    return localStorage.getItem("danajet-theme") || "light";
+    if (typeof window === "undefined") return "dark";
+    return localStorage.getItem("danajet-theme") || "dark";
   });
 
   useEffect(() => {
-    const updateCartCount = () => {
-      setCartCount(readCart().reduce((total, item) => total + item.quantity, 0));
+    let isMounted = true;
+    const updateCartCount = async () => {
+      try {
+        const count = await getCartCount();
+        if (isMounted) setCartCount(count);
+      } catch {
+        if (isMounted) setCartCount(0);
+      }
     };
 
     updateCartCount();
     window.addEventListener("danajet-cart-updated", updateCartCount);
-    return () => window.removeEventListener("danajet-cart-updated", updateCartCount);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("danajet-cart-updated", updateCartCount);
+    };
   }, []);
 
   useEffect(() => {
-    const updateAuthUser = () => setAuthUser(readAuthUser());
+    let isMounted = true;
+    const updateAuthUser = async () => {
+      const user = await getCurrentUser();
+      if (isMounted) setAuthUser(user);
+    };
+    updateAuthUser();
     window.addEventListener("danajet-auth-updated", updateAuthUser);
-    return () => window.removeEventListener("danajet-auth-updated", updateAuthUser);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("danajet-auth-updated", updateAuthUser);
+    };
   }, []);
 
   useEffect(() => {
@@ -669,11 +725,28 @@ function Header() {
     localStorage.setItem("danajet-theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    const closeAccountMenu = (event) => {
+      if (!accountMenuRef.current || accountMenuRef.current.contains(event.target)) return;
+      setIsAccountMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeAccountMenu);
+    return () => document.removeEventListener("pointerdown", closeAccountMenu);
+  }, []);
+
   const toggleTheme = () => setTheme((current) => (current === "dark" ? "light" : "dark"));
-  const handleSignOut = () => {
-    writeAuthUser(null);
+  const authUserName = authUser?.full_name || `${authUser?.first_name || ""} ${authUser?.last_name || ""}`.trim() || authUser?.username || authUser?.email?.split("@")[0] || "Account";
+  const handleSignOut = async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // The menu should still reset if the session has already expired.
+    }
     setAuthUser(null);
     setIsOpen(false);
+    setIsAccountMenuOpen(false);
+    notifyAuthUpdated();
   };
 
   return (
@@ -703,7 +776,28 @@ function Header() {
             ))}
           </nav>
           <div className="header-actions">
-            <a className="login-link" href="/login">{authUser ? "Account" : "Login"}</a>
+            {authUser ? (
+              <div className="account-menu" ref={accountMenuRef}>
+                <button
+                  className="profile-button"
+                  type="button"
+                  aria-label="Open account menu"
+                  aria-expanded={isAccountMenuOpen}
+                  onClick={() => setIsAccountMenuOpen((current) => !current)}
+                >
+                  <UserRound size={20} />
+                </button>
+                {isAccountMenuOpen && (
+                  <div className="account-dropdown" role="menu">
+                    <strong>{authUserName}</strong>
+                    <a href="/orders" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>Your Orders</a>
+                    <button type="button" role="menuitem" onClick={handleSignOut}>Sign Out</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <a className="login-link" href="/login">Login</a>
+            )}
             <a className="cart-link" href="/cart" aria-label={`Shopping bag with ${cartCount} items`}>
               <ShoppingBag size={18} /><span>{cartCount}</span>
             </a>
@@ -754,8 +848,26 @@ function Header() {
                 </div>
               );
             })}
-            <a href="/login" onClick={() => setIsOpen(false)}>{authUser ? "Account" : "Login"}</a>
-            {authUser && <button className="mobile-signout-button" type="button" onClick={handleSignOut}>Sign out</button>}
+            {authUser ? (
+              <div className={`mobile-nav-item ${openMobileDropdown === "Account" ? "is-open" : ""}`}>
+                <button
+                  type="button"
+                  aria-expanded={openMobileDropdown === "Account"}
+                  onClick={() => setOpenMobileDropdown(openMobileDropdown === "Account" ? null : "Account")}
+                >
+                  Account <ChevronDown size={15} />
+                </button>
+                {openMobileDropdown === "Account" && (
+                  <div className="mobile-dropdown mobile-account-dropdown">
+                    <strong>{authUserName}</strong>
+                    <a href="/orders" onClick={() => setIsOpen(false)}>Your Orders</a>
+                    <button type="button" onClick={handleSignOut}>Sign Out</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <a href="/login" onClick={() => setIsOpen(false)}>Login</a>
+            )}
             <a href="/cart" onClick={() => setIsOpen(false)}>Shopping bag ({cartCount})</a>
             <a className="button" href="/request-project" onClick={() => setIsOpen(false)}>Start a Project</a>
           </nav>
@@ -789,25 +901,36 @@ function SectionHeading({ eyebrow, title, copy, action, eyebrowClassName = "" })
 }
 
 function BookCover({ book, index }) {
+  const uploadedImage = book.imageUrl || book.galleryImages?.[0];
+  const subtitle = book.mark || book.description || book.subtitle || "";
+  const author = book.author || "Danajet BookLab";
+  const amazonHref = book.amazonUrl || book.amazon_url || book.externalUrl || book.external_url || "/shop";
+
   return (
     <article className="book-card">
       <div className="book-stage">
-        <div className={`book-cover book-${book.color}`}>
-          <span className="book-kicker">DANAJET EDITION</span>
-          <h3>{book.title}</h3>
-          <span className="cover-plane"><Plane size={26} /></span>
-          <p>{book.author}</p>
-        </div>
+        {uploadedImage ? (
+          <div className="featured-book-uploaded">
+            <img src={resolveMediaUrl(uploadedImage)} alt={book.title} />
+          </div>
+        ) : (
+          <div className={`book-cover book-${book.color || book.cover || "orange"}`}>
+            <span className="book-kicker">DANAJET EDITION</span>
+            <h3>{book.title}</h3>
+            <span className="cover-plane"><Plane size={26} /></span>
+            <p>{author}</p>
+          </div>
+        )}
         <span className="book-index">0{index + 1}</span>
       </div>
       <div className="book-info">
         <div>
           <h3>{book.title}</h3>
-          <p>{book.mark}</p>
+          <p>{subtitle}</p>
         </div>
         <div className="book-actions">
           <a href="/request-project">Order from me <ArrowRight size={15} /></a>
-          <a href="#amazon">Shop on Amazon <ExternalLink size={14} /></a>
+          <a href={amazonHref}>Shop on Amazon <ExternalLink size={14} /></a>
         </div>
       </div>
     </article>
@@ -822,6 +945,18 @@ function formatPrice(product) {
 }
 
 function ProductArtwork({ product, view = "front" }) {
+  const imageIndex = view === "stack" ? 1 : view === "detail" ? 2 : 0;
+  const uploadedImage = imageIndex === 0
+    ? product.imageUrl || product.galleryImages?.[0]
+    : product.galleryImages?.[imageIndex] || product.imageUrl || product.galleryImages?.[0];
+  if (uploadedImage) {
+    return (
+      <div className={`shop-artwork shop-artwork-${view} shop-artwork-uploaded`}>
+        <img src={resolveMediaUrl(uploadedImage)} alt={product.title} />
+      </div>
+    );
+  }
+
   return (
     <div className={`shop-artwork shop-artwork-${view} cover-${product.cover}`} style={{ "--product-accent": product.accent }}>
       <div className="shop-book">
@@ -839,8 +974,8 @@ function ProductArtwork({ product, view = "front" }) {
 function ShopProductCard({ product }) {
   const [added, setAdded] = useState(false);
 
-  const handleAdd = () => {
-    addToCart(product);
+  const handleAdd = async () => {
+    await addToCart(product);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1400);
   };
@@ -896,19 +1031,21 @@ function getAllCourses() {
   ));
 }
 
-function CourseWaitlistCard({ title, category, icon, categoryIndex = 0, itemIndex = 0 }) {
+function CourseWaitlistCard({ course }) {
   const [added, setAdded] = useState(false);
-  const { courseTitle, courseSubtitle, displayPrice, rating, slug } = getCourseDisplayData(title, category, categoryIndex, itemIndex);
+  const { courseTitle, courseSubtitle, displayPrice, rating, slug } = course;
   const courseHref = `/courses/${slug}`;
   const product = {
-    id: `course-${courseSlug(title)}`,
+    id: course.id,
+    item_type: "course",
+    courseId: course.id,
     slug: `courses/${slug}`,
     title: courseTitle,
     price: displayPrice,
   };
 
-  const handleAdd = () => {
-    addToCart(product);
+  const handleAdd = async () => {
+    await addToCart(product);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1400);
   };
@@ -916,7 +1053,7 @@ function CourseWaitlistCard({ title, category, icon, categoryIndex = 0, itemInde
   return (
     <article className="course-product-card">
       <a className="course-thumbnail" href={courseHref} aria-label={`Preview ${courseTitle}`}>
-        <span className="course-thumbnail-accent" />
+        {course.thumbnailUrl ? <img src={resolveMediaUrl(course.thumbnailUrl)} alt="" /> : <span className="course-thumbnail-accent" />}
         <span className="course-play-button"><Play size={32} fill="currentColor" /></span>
       </a>
       <h3><a href={courseHref}>{courseTitle}</a></h3>
@@ -930,9 +1067,9 @@ function CourseWaitlistCard({ title, category, icon, categoryIndex = 0, itemInde
       <div className="course-product-bottom">
         <div className="course-price">
           <strong>${displayPrice}</strong>
-          <del>$49</del>
+          <del>${course.compare_at_price || "49.00"}</del>
         </div>
-        <button type="button" onClick={handleAdd} aria-label={`Add ${title} to cart`}>
+        <button type="button" onClick={handleAdd} aria-label={`Add ${courseTitle} to cart`}>
           {added ? <PackageCheck size={17} /> : <ShoppingBag size={17} />}
           <span>{added ? "Added" : "Add to Cart"}</span>
         </button>
@@ -943,9 +1080,40 @@ function CourseWaitlistCard({ title, category, icon, categoryIndex = 0, itemInde
 
 function CourseCatalog({ showHeading = true }) {
   const [activeCategory, setActiveCategory] = useState("all");
+  const [courses, setCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCourses()
+      .then((items) => {
+        if (isMounted) setCourses(items);
+      })
+      .catch(() => {
+        if (isMounted) setCourses([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const categories = courses.reduce((groups, course) => {
+    const title = course.category || "Courses";
+    const existing = groups.find((item) => item.title === title);
+    if (existing) {
+      existing.items.push(course);
+    } else {
+      groups.push({ title, icon: course.categoryIcon || "", items: [course] });
+    }
+    return groups;
+  }, []);
   const visibleCategories = activeCategory === "all"
-    ? courseCategories
-    : courseCategories.filter((category) => category.title === activeCategory);
+    ? categories
+    : categories.filter((category) => category.title === activeCategory);
+
   return (
     <div className="course-catalog">
       {showHeading && (
@@ -963,7 +1131,7 @@ function CourseCatalog({ showHeading = true }) {
         >
           All
         </button>
-        {courseCategories.map((category) => (
+        {categories.map((category) => (
           <button
             className={activeCategory === category.title ? "is-active" : ""}
             type="button"
@@ -976,9 +1144,9 @@ function CourseCatalog({ showHeading = true }) {
         ))}
       </div>
       <div className="course-category-stack">
+        {isLoading && <div className="cart-empty"><h2>Loading courses.</h2></div>}
+        {!isLoading && visibleCategories.length === 0 && <div className="cart-empty"><h2>No courses found.</h2></div>}
         {visibleCategories.map((category) => {
-          const categoryIndex = courseCategories.findIndex((item) => item.title === category.title);
-
           return (
           <section className="course-category" key={category.title}>
             <div className="course-category-heading">
@@ -986,14 +1154,10 @@ function CourseCatalog({ showHeading = true }) {
               <h2>{category.title}</h2>
             </div>
             <div className="course-product-grid">
-              {category.items.map((item, itemIndex) => (
+              {category.items.map((course) => (
                 <CourseWaitlistCard
-                  title={item}
-                  category={category.title}
-                  icon={category.icon}
-                  categoryIndex={categoryIndex}
-                  itemIndex={itemIndex}
-                  key={item}
+                  course={course}
+                  key={course.id || course.slug}
                 />
               ))}
             </div>
@@ -1059,13 +1223,31 @@ function AcademyHeroCarousel() {
 }
 
 function ShopPage() {
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(shopCategories);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("featured");
 
   useEffect(() => {
-    getProducts().then(setProducts);
+    let isMounted = true;
+    Promise.all([getProducts(), getShopCategories().catch(() => shopCategories)])
+      .then(([items, categoryItems]) => {
+        if (isMounted) {
+          setProducts(items.filter((item) => item.is_published !== false));
+          setCategories(categoryItems.length ? categoryItems : shopCategories);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setProducts([]);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const filteredProducts = products
@@ -1092,9 +1274,11 @@ function ShopPage() {
               <h1>Books for bright ideas and <em>brave beginnings.</em></h1>
               <p>Thoughtful stories, journals, guides, and workbooks made to encourage learning, creativity, and meaningful growth.</p>
             </div>
-            <div className="shop-hero-art" aria-hidden="true">
-              <ProductArtwork product={products[0] || mockProducts[0]} view="stack" />
-            </div>
+            {products[0] && (
+              <div className="shop-hero-art" aria-hidden="true">
+                <ProductArtwork product={products[0]} view="stack" />
+              </div>
+            )}
           </div>
         </section>
 
@@ -1129,7 +1313,7 @@ function ShopPage() {
             </div>
             <div className="shop-toolbar">
               <div className="shop-category-tabs">
-                {shopCategories.map((category) => (
+                {categories.map((category) => (
                   <button
                     className={activeCategory === category.id ? "is-active" : ""}
                     type="button"
@@ -1152,6 +1336,8 @@ function ShopPage() {
               </select>
             </div>
             <div className="shop-grid">
+              {isLoading && <div className="cart-empty"><h2>Loading books.</h2></div>}
+              {!isLoading && filteredProducts.length === 0 && <div className="cart-empty"><h2>No products found.</h2></div>}
               {filteredProducts.map((product) => <ShopProductCard product={product} key={product.id} />)}
             </div>
           </div>
@@ -1185,9 +1371,39 @@ function CoursesPage() {
 }
 
 function CourseDetailPage({ slug }) {
-  const course = getAllCourses().find((item) => item.slug === slug);
+  const [course, setCourse] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [added, setAdded] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCourse(slug)
+      .then((item) => {
+        if (isMounted) setCourse(item);
+      })
+      .catch(() => {
+        if (isMounted) setCourse(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
+
+  if (isLoading) {
+    return (
+      <div className="courses-page">
+        <Header />
+        <main className="product-not-found">
+          <h1>Loading course.</h1>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -1202,12 +1418,15 @@ function CourseDetailPage({ slug }) {
     );
   }
 
-  const handleAdd = () => {
-    addToCart({
-      id: `course-${course.slug}`,
+  const handleAdd = async () => {
+    await addToCart({
+      id: course.id,
+      item_type: "course",
+      courseId: course.id,
       slug: `courses/${course.slug}`,
       title: course.courseTitle,
       price: course.displayPrice,
+      category_label: course.category,
     });
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1400);
@@ -1318,14 +1537,54 @@ function CourseDetailPage({ slug }) {
 }
 
 function ProductDetailPage({ slug }) {
-  const [product, setProduct] = useState(mockProducts.find((item) => item.slug === slug));
+  const productViews = ["front", "stack", "detail"];
+  const [product, setProduct] = useState(null);
+  const [related, setRelated] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [activeView, setActiveView] = useState("front");
   const [added, setAdded] = useState(false);
 
   useEffect(() => {
-    getProduct(slug).then(setProduct);
+    let isMounted = true;
+    Promise.all([getProduct(slug), getProducts()])
+      .then(([item, items]) => {
+        if (!isMounted) return;
+        setProduct(item?.is_published === false ? null : item);
+        const sameCategory = items.filter((candidate) => candidate.id !== item.id && candidate.category === item.category);
+        const otherProducts = items.filter((candidate) => candidate.id !== item.id && candidate.category !== item.category);
+        setRelated([...sameCategory, ...otherProducts].slice(0, 3));
+      })
+      .catch(() => {
+        if (isMounted) {
+          setProduct(null);
+          setRelated([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [slug]);
+
+  useEffect(() => {
+    if (!product) return undefined;
+    const rotation = window.setInterval(() => {
+      setActiveView((current) => {
+        const currentIndex = productViews.indexOf(current);
+        return productViews[(currentIndex + 1) % productViews.length];
+      });
+    }, 3200);
+    return () => window.clearInterval(rotation);
+  }, [product]);
+
+  if (isLoading) {
+    return (
+      <div><Header /><main className="product-not-found"><h1>Loading book.</h1></main><Footer /></div>
+    );
+  }
 
   if (!product) {
     return (
@@ -1333,16 +1592,11 @@ function ProductDetailPage({ slug }) {
     );
   }
 
-  const handleAdd = () => {
-    addToCart(product, quantity);
+  const handleAdd = async () => {
+    await addToCart(product, quantity);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1600);
   };
-  const sameCategory = mockProducts.filter((item) => item.id !== product.id && item.category === product.category);
-  const related = [
-    ...sameCategory,
-    ...mockProducts.filter((item) => item.id !== product.id && item.category !== product.category),
-  ].slice(0, 3);
 
   return (
     <div className="product-page">
@@ -1352,7 +1606,7 @@ function ProductDetailPage({ slug }) {
         <section className="container product-detail">
           <div className="product-gallery">
             <div className="product-thumbnails">
-              {["front", "stack", "detail"].map((view) => (
+              {productViews.map((view) => (
                 <button className={activeView === view ? "is-active" : ""} type="button" onClick={() => setActiveView(view)} key={view}>
                   <ProductArtwork product={product} view={view} />
                 </button>
@@ -1412,44 +1666,59 @@ function ProductDetailPage({ slug }) {
 }
 
 function getCartDisplayItem(item) {
-  const product = mockProducts.find((candidate) => candidate.id === item.id || candidate.slug === item.slug);
   return {
-    ...product,
     ...item,
-    price: Number(item.price ?? product?.price ?? 0),
+    price: Number(item.price ?? 0),
     quantity: Number(item.quantity) || 1,
-    slug: item.slug || product?.slug || "",
-    title: item.title || product?.title || "Danajet item",
-    subtitle: item.subtitle || product?.subtitle || "",
-    category_label: item.category_label || product?.category_label || "Danajet item",
-    author: item.author || product?.author || "Danajet",
-    currency: item.currency || product?.currency || "USD",
-    cover: item.cover || product?.cover || "orange",
-    accent: item.accent || product?.accent || "#e3450b",
+    slug: item.slug || "",
+    title: item.title || "Danajet item",
+    subtitle: item.subtitle || "",
+    category_label: item.category_label || "Danajet item",
+    author: item.author || "Danajet",
+    currency: item.currency || "USD",
+    cover: item.cover || "orange",
+    accent: item.accent || "#e3450b",
   };
 }
 
 function LoginPage() {
-  const [authUser, setAuthUser] = useState(() => readAuthUser());
-  const [form, setForm] = useState({ email: authUser?.email || "", password: "" });
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "", first_name: "", last_name: "" });
+  const [mode, setMode] = useState("login");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const user = {
-      email: form.email.trim(),
-      name: form.email.split("@")[0] || "Danajet reader",
-      signedInAt: new Date().toISOString(),
+  useEffect(() => {
+    let isMounted = true;
+    getCurrentUser().then((user) => {
+      if (isMounted && user) window.location.replace("/");
+    });
+    return () => {
+      isMounted = false;
     };
-    writeAuthUser(user);
-    window.location.replace("/");
-  };
+  }, []);
 
-  const handleLogout = () => {
-    writeAuthUser(null);
-    setAuthUser(null);
-    setForm({ email: "", password: "" });
-    setIsSubmitted(false);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
+    try {
+      if (mode === "register") {
+        await registerUser({
+          email: form.email.trim(),
+          password: form.password,
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+        });
+      } else {
+        await loginUser({ email: form.email.trim(), password: form.password });
+      }
+      notifyAuthUpdated();
+      window.location.replace("/");
+    } catch (apiError) {
+      setError(apiError.message || "Please check your details and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1459,7 +1728,7 @@ function LoginPage() {
         <section className="account-hero">
           <div className="container account-layout">
             <form className="login-panel" onSubmit={handleSubmit}>
-              {authUser ? (
+              {false ? (
                 <div className="account-signed-in">
                   <span><PackageCheck size={24} /></span>
                   <p>Signed in as</p>
@@ -1473,9 +1742,29 @@ function LoginPage() {
               ) : (
                 <>
                   <div>
-                    <p className="eyebrow">Customer login</p>
-                    <h2>Welcome back.</h2>
+                    <p className="eyebrow">{mode === "register" ? "Create account" : "Customer login"}</p>
+                    <h2>{mode === "register" ? "Start your account." : "Welcome back."}</h2>
                   </div>
+                  {mode === "register" && (
+                    <div className="checkout-grid account-name-grid">
+                      <label>
+                        <span>First name</span>
+                        <input
+                          value={form.first_name}
+                          onChange={(event) => setForm((current) => ({ ...current, first_name: event.target.value }))}
+                          autoComplete="given-name"
+                        />
+                      </label>
+                      <label>
+                        <span>Last name</span>
+                        <input
+                          value={form.last_name}
+                          onChange={(event) => setForm((current) => ({ ...current, last_name: event.target.value }))}
+                          autoComplete="family-name"
+                        />
+                      </label>
+                    </div>
+                  )}
                   <label>
                     <span>Email address</span>
                     <input
@@ -1483,6 +1772,7 @@ function LoginPage() {
                       value={form.email}
                       onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                       placeholder="you@example.com"
+                      autoComplete="email"
                       required
                     />
                   </label>
@@ -1492,12 +1782,22 @@ function LoginPage() {
                       type="password"
                       value={form.password}
                       onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                      autoComplete={mode === "register" ? "new-password" : "current-password"}
+                      minLength={mode === "register" ? 8 : undefined}
                       placeholder="••••••••"
                       required
                     />
                   </label>
-                  <button className="button" type="submit">Login <ArrowRight size={17} /></button>
-                  <p className="signup-prompt">Don't have an account? <button type="button">Sign up</button></p>
+                  {error && <p className="form-error">{error}</p>}
+                  <button className="button" type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Please wait" : mode === "register" ? "Create Account" : "Login"} <ArrowRight size={17} />
+                  </button>
+                  <p className="signup-prompt">
+                    {mode === "register" ? "Already have an account?" : "Don't have an account?"}
+                    <button type="button" onClick={() => { setError(""); setMode(mode === "register" ? "login" : "register"); }}>
+                      {mode === "register" ? "Login" : "Sign up"}
+                    </button>
+                  </p>
                   <a className="text-link" href="/request-project">Need help with a book project? <ArrowRight size={16} /></a>
                 </>
               )}
@@ -1527,29 +1827,44 @@ function LoginPage() {
 }
 
 function CartPage() {
-  const [cart, setCart] = useState(() => readCart().map(getCartDisplayItem));
+  const [cart, setCart] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const subtotal = cart.reduce((total, item) => total + Number(item.price || 0) * item.quantity, 0);
   const estimatedShipping = cart.length ? 5.99 : 0;
   const estimatedTotal = subtotal + estimatedShipping;
 
   useEffect(() => {
-    const updateCart = () => setCart(readCart().map(getCartDisplayItem));
+    let isMounted = true;
+    const updateCart = async () => {
+      try {
+        const items = await getCartDisplayItems();
+        if (isMounted) setCart(items.map(getCartDisplayItem));
+      } catch {
+        if (isMounted) setCart([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    updateCart();
     window.addEventListener("danajet-cart-updated", updateCart);
-    return () => window.removeEventListener("danajet-cart-updated", updateCart);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("danajet-cart-updated", updateCart);
+    };
   }, []);
 
-  const handleQuantityChange = (itemId, quantity) => {
-    updateCartQuantity(itemId, quantity);
-    setCart(readCart().map(getCartDisplayItem));
+  const handleQuantityChange = async (itemId, quantity) => {
+    await updateCartQuantity(itemId, quantity);
+    setCart((current) => current.map((item) => (item.id === itemId ? { ...item, quantity: Math.max(1, Number(quantity) || 1) } : item)));
   };
 
-  const handleRemove = (itemId) => {
-    removeFromCart(itemId);
-    setCart(readCart().map(getCartDisplayItem));
+  const handleRemove = async (itemId) => {
+    await removeFromCart(itemId);
+    setCart((current) => current.filter((item) => item.id !== itemId));
   };
 
-  const handleClear = () => {
-    clearCart();
+  const handleClear = async () => {
+    await clearCart();
     setCart([]);
   };
 
@@ -1567,7 +1882,12 @@ function CartPage() {
         <section className="section cart-section">
           <div className="container cart-layout">
             <div className="cart-items" aria-label="Shopping bag items">
-              {cart.length ? (
+              {isLoading ? (
+                <div className="cart-empty">
+                  <ShoppingBag size={34} />
+                  <h2>Loading your shopping bag.</h2>
+                </div>
+              ) : cart.length ? (
                 cart.map((item) => (
                   <article className="cart-item" key={item.id}>
                     <a className="cart-item-art" href={item.slug?.startsWith("courses/") ? `/${item.slug}` : `/shop/${item.slug}`}>
@@ -1619,22 +1939,67 @@ function CartPage() {
 }
 
 function CheckoutPage() {
-  const [cart, setCart] = useState(() => readCart().map(getCartDisplayItem));
+  const [cart, setCart] = useState([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const subtotal = cart.reduce((total, item) => total + Number(item.price || 0) * item.quantity, 0);
   const estimatedShipping = cart.length ? 5.99 : 0;
   const estimatedTotal = subtotal + estimatedShipping;
   const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   useEffect(() => {
-    const updateCart = () => setCart(readCart().map(getCartDisplayItem));
+    let isMounted = true;
+    const updateCart = async () => {
+      try {
+        const items = await getCartDisplayItems();
+        if (isMounted) setCart(items.map(getCartDisplayItem));
+      } catch {
+        if (isMounted) setCart([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    updateCart();
     window.addEventListener("danajet-cart-updated", updateCart);
-    return () => window.removeEventListener("danajet-cart-updated", updateCart);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("danajet-cart-updated", updateCart);
+    };
   }, []);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setIsSubmitted(true);
+    const formData = new FormData(event.currentTarget);
+    setCheckoutError("");
+    setIsSubmitting(true);
+    try {
+      const order = await submitCheckout({
+        email: formData.get("email"),
+        phone: formData.get("phone") || "",
+        first_name: formData.get("firstName"),
+        last_name: formData.get("lastName"),
+        notes: formData.get("notes") || "",
+        shipping_total: estimatedShipping.toFixed(2),
+        shipping_address: {
+          address: formData.get("address"),
+          city: formData.get("city"),
+          state: formData.get("state"),
+          postal_code: formData.get("postalCode"),
+          country: formData.get("country"),
+        },
+      });
+      setOrderNumber(order.order_number || "");
+      setCart([]);
+      setIsSubmitted(true);
+      window.dispatchEvent(new Event("danajet-cart-updated"));
+    } catch (apiError) {
+      setCheckoutError(apiError.message || "Please check your order details and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1650,7 +2015,12 @@ function CheckoutPage() {
 
         <section className="section checkout-section">
           <div className="container checkout-layout">
-            {cart.length ? (
+            {isLoading ? (
+              <div className="cart-empty checkout-empty">
+                <ShoppingBag size={34} />
+                <h2>Loading checkout.</h2>
+              </div>
+            ) : cart.length || isSubmitted ? (
               <>
                 <form className="checkout-form" onSubmit={handleSubmit}>
                   {isSubmitted ? (
@@ -1658,7 +2028,7 @@ function CheckoutPage() {
                       <PackageCheck size={34} />
                       <p className="eyebrow">Checkout received</p>
                       <h2>We have your order details.</h2>
-                      <p>Thank you. Danajet will review your order and follow up with the next step.</p>
+                      <p>Thank you. Danajet will review your order and follow up with the next step.{orderNumber && ` Order ${orderNumber} is saved.`}</p>
                       <a className="button" href="/">Back Home <ArrowRight size={17} /></a>
                     </div>
                   ) : (
@@ -1683,27 +2053,32 @@ function CheckoutPage() {
                         <p className="eyebrow">Payment</p>
                         <strong>Payment details will be confirmed after your order is reviewed.</strong>
                       </div>
-                      <button className="button" type="submit">Place Order <ArrowRight size={17} /></button>
+                      {checkoutError && <p className="form-error">{checkoutError}</p>}
+                      <button className="button" type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? "Placing Order" : "Place Order"} <ArrowRight size={17} />
+                      </button>
                     </>
                   )}
                 </form>
 
-                <aside className="checkout-summary">
-                  <p className="eyebrow">Your bag</p>
-                  <div className="checkout-summary-items">
-                    {cart.map((item) => (
-                      <div className="checkout-summary-item" key={item.id}>
-                        <span>{item.quantity}x</span>
-                        <strong>{item.title}</strong>
-                        <em>{formatPrice(item)}</em>
-                      </div>
-                    ))}
-                  </div>
-                  <div><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div>
-                  <div><span>Estimated shipping</span><strong>${estimatedShipping.toFixed(2)}</strong></div>
-                  <div className="cart-total"><span>Total</span><strong>${estimatedTotal.toFixed(2)}</strong></div>
-                  <a className="button button-outline continue-shopping-button" href="/cart">Back to Bag</a>
-                </aside>
+                {!isSubmitted && (
+                  <aside className="checkout-summary">
+                    <p className="eyebrow">Your bag</p>
+                    <div className="checkout-summary-items">
+                      {cart.map((item) => (
+                        <div className="checkout-summary-item" key={item.id}>
+                          <span>{item.quantity}x</span>
+                          <strong>{item.title}</strong>
+                          <em>{formatPrice(item)}</em>
+                        </div>
+                      ))}
+                    </div>
+                    <div><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div>
+                    <div><span>Estimated shipping</span><strong>${estimatedShipping.toFixed(2)}</strong></div>
+                    <div className="cart-total"><span>Total</span><strong>${estimatedTotal.toFixed(2)}</strong></div>
+                    <a className="button button-outline continue-shopping-button" href="/cart">Back to Bag</a>
+                  </aside>
+                )}
               </>
             ) : (
               <div className="cart-empty checkout-empty">
@@ -1721,11 +2096,19 @@ function CheckoutPage() {
   );
 }
 
+function getPortfolioImageSrc(project) {
+  const image = project.featuredImageUrl || project.imageUrl || project.image || "03";
+  if (/^https?:\/\//i.test(image) || String(image).startsWith("/") || String(image).startsWith("media/") || String(image).startsWith("uploads/")) {
+    return resolveMediaUrl(image);
+  }
+  return `/assets/portfolio/page-${String(image).replace(/^page-/i, "").replace(/\.jpg$/i, "")}.jpg`;
+}
+
 function PortfolioCard({ project, index, onOpen }) {
-  const category = portfolioCategories.find((item) => item.id === project.category)?.label;
+  const category = project.categoryLabel || portfolioCategories.find((item) => item.id === project.category)?.label;
   const preview = (
     <>
-      <img src={`/assets/portfolio/page-${project.image}.jpg`} alt={`${project.title} portfolio presentation`} loading="lazy" />
+      <img src={getPortfolioImageSrc(project)} alt={`${project.title} portfolio presentation`} loading="lazy" />
       <span><MoveUpRight size={19} /></span>
     </>
   );
@@ -1765,26 +2148,38 @@ function BrandStickerField({ className = "" }) {
 }
 
 function Footer() {
+  const footer = useFooterSettings();
+  const email = footer.email || adminContactDefaults.email;
+  const whatsapp = footer.whatsapp || adminContactDefaults.whatsapp;
+  const whatsappHref = whatsapp.startsWith("http") ? whatsapp : `/contact#whatsapp`;
+  const socialLinks = {
+    youtube: footer.youtube || adminContactDefaults.youtube,
+    instagram: footer.instagram || adminContactDefaults.instagram,
+    facebook: footer.facebook || "#facebook",
+    linkedin: footer.linkedin || adminContactDefaults.linkedin,
+    tiktok: footer.tiktok || adminContactDefaults.tiktok,
+  };
+
   return (
     <footer className="footer">
       <BrandStickerField className="footer-sticker-field" />
       <div className="container footer-grid">
         <div className="footer-brand">
           <BrandMark light />
-          <p>Helping authors create, publish, and share professional books while building educational resources, creative media, and future innovations.</p>
+          <p>{footer.footerCopy || adminContactDefaults.footerCopy}</p>
           <a className="footer-brand-link" href="/blog">Blog Posts <ArrowRight size={15} /></a>
           <div className="socials">
-            <a href="#youtube" aria-label="YouTube"><Youtube /></a>
-            <a href="#instagram" aria-label="Instagram"><Instagram /></a>
-            <a href="#facebook" aria-label="Facebook"><Facebook /></a>
-            <a href="#linkedin" aria-label="LinkedIn"><Linkedin /></a>
-            <a href="#tiktok" aria-label="TikTok"><Tiktok /></a>
+            <a href={socialLinks.youtube} aria-label="YouTube"><Youtube /></a>
+            <a href={socialLinks.instagram} aria-label="Instagram"><Instagram /></a>
+            <a href={socialLinks.facebook} aria-label="Facebook"><Facebook /></a>
+            <a href={socialLinks.linkedin} aria-label="LinkedIn"><Linkedin /></a>
+            <a href={socialLinks.tiktok} aria-label="TikTok"><Tiktok /></a>
           </div>
         </div>
         <div><h3>Explore</h3><a href="/about">About</a><a href="/shop">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="/#brands">Media</a><a href="/reviews">Testimonials</a></div>
         <div><h3>BookLab</h3><a href="/#booklab-services">Book formatting</a><a href="/#booklab-services">Book design</a><a href="/#booklab-services">KDP support</a><a href="/#booklab-services">EPUB formatting</a><a href="/portfolio">Portfolio</a></div>
         <div><h3>More Services</h3><a href="/#booklab-services">Children's books</a><a href="/#booklab-services">Workbook design</a><a href="/#booklab-services">A+ content design</a><a href="/#booklab-services">Book trailers</a></div>
-        <div><h3>Contact</h3><a href="/contact">Contact page</a><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="/contact#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
+        <div><h3>Contact</h3><a href="/contact">Contact page</a><a href={`mailto:${email}`}>{email}</a><a href={whatsappHref}><MessageCircle size={15} /> WhatsApp</a><a href={socialLinks.youtube}>YouTube</a><a href={socialLinks.instagram}>Instagram</a><a href={socialLinks.tiktok}>TikTok</a></div>
       </div>
       <div className="container footer-bottom">
         <p>© 2026 Danajet Nig. Ltd. All Rights Reserved.</p>
@@ -1794,7 +2189,8 @@ function Footer() {
   );
 }
 
-function AboutStory() {
+function AboutStory({ content = adminAboutDefaults }) {
+  const aboutVideoUrl = resolveMediaUrl(content.video);
   const focusAreas = [
     {
       name: "BookLab",
@@ -1818,37 +2214,41 @@ function AboutStory() {
     <div className="about-story">
       <aside className="about-profile-panel">
         <div className="about-video-placeholder" aria-label="Danajet brand introduction video placeholder">
-          <div className="about-video-screen">
-            <span className="about-video-play"><Play size={34} fill="currentColor" /></span>
-            <div>
-              <small>Coming soon</small>
-              <strong>Brand intro video</strong>
-              <p>30-60 seconds introducing Danajet, the mission, and the creative work behind the brand.</p>
+          {aboutVideoUrl ? (
+            <video className="about-video-screen" src={aboutVideoUrl} controls playsInline />
+          ) : (
+            <div className="about-video-screen">
+              <span className="about-video-play"><Play size={34} fill="currentColor" /></span>
+              <div>
+                <small>Coming soon</small>
+                <strong>Brand intro video</strong>
+                <p>30-60 seconds introducing Danajet, the mission, and the creative work behind the brand.</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="about-profile-note">
-          <span>Founder and Creative Lead</span>
-          <strong>Daniel - Ajetunmobi</strong>
-          <p>Helping authors, learners, and creative brands turn ideas into polished work.</p>
+          <span>{content.founderRole}</span>
+          <strong>{content.founderName}</strong>
+          <p>{content.founderTagline}</p>
         </div>
       </aside>
 
       <div className="about-content">
         <div className="about-intro">
           <p className="eyebrow">About Daniel & Danajet</p>
-          <p className="about-lede">I'm Daniel, the founder and creative mind behind Danajet. My work brings together book design, publishing support, storytelling, education, and long-term innovation under one clear creative vision.</p>
+          <p className="about-lede">{content.intro}</p>
         </div>
 
         <div className="about-body-grid">
           <div className="about-main-copy">
-            <p>My journey started with a passion for creativity, storytelling, and helping ideas come to life. <strong>The name "Danajet" was born by combining "Dan" from my first name, Daniel, and "Ajet" from my surname, Ajetunmobi.</strong> More than just a name, it represents my belief that great ideas deserve the opportunity to take flight. What began as a love for designing and creating has grown into a brand dedicated to helping authors transform their manuscripts into professional, publish-ready books.</p>
-            <p>Danajet is more than one service. It is a growing ecosystem for creativity, education, media, and future innovation, with each part created to help people present their work with more confidence and clarity.</p>
+            <p>{content.journey}</p>
+            <p>{content.ecosystem}</p>
             <blockquote>
-              <span>Core belief</span>
-              <strong>Great ideas deserve to be seen, experienced, and shared with the world.</strong>
+              <span>{content.beliefTitle}</span>
+              <strong>{content.beliefText}</strong>
             </blockquote>
-            <p>Whether you're an author with a manuscript waiting to become a beautiful book, a learner seeking new skills, or a reader exploring my creations, I invite you to be part of the <strong>Danajet journey.</strong></p>
+            <p>{content.invitation}</p>
           </div>
 
           <div className="about-side-note">
@@ -1878,6 +2278,26 @@ function AboutStory() {
 }
 
 function AboutPage() {
+  const [aboutContent, setAboutContent] = useState(adminAboutDefaults);
+
+  useEffect(() => {
+    let isMounted = true;
+    listAdminSettings()
+      .then((settings) => {
+        if (!isMounted) return;
+        const prefix = "about-page-";
+        const values = settings.reduce((next, setting) => {
+          if (setting.key?.startsWith(prefix)) next[setting.key.slice(prefix.length)] = setting.value;
+          return next;
+        }, {});
+        setAboutContent((current) => ({ ...current, ...values }));
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="about-page">
       <Header />
@@ -1898,7 +2318,7 @@ function AboutPage() {
         </section>
         <section className="section about-page-section">
           <div className="container">
-            <AboutStory />
+            <AboutStory content={aboutContent} />
           </div>
         </section>
         <section className="final-cta about-final-cta">
@@ -2291,6 +2711,43 @@ function TransportPage() {
 }
 
 function HomePage() {
+  const [homeTestimonials, setHomeTestimonials] = useState(testimonials);
+  const [homeFeaturedBooks, setHomeFeaturedBooks] = useState(books);
+  const [homeFeaturedWorkItems, setHomeFeaturedWorkItems] = useState(featuredProjects);
+  const [homeBrands, setHomeBrands] = useState(brands);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.allSettled([listAdminReviews(), listAdminPortfolio(), listAdminBrands(), listAdminSettings(), getProducts()])
+      .then(([reviewsResult, portfolioResult, brandsResult, settingsResult, productsResult]) => {
+        if (!isMounted) return;
+        if (reviewsResult.status === "fulfilled") {
+          const visibleReviews = reviewsResult.value.filter((review) => review.is_published !== false);
+          if (visibleReviews.length) setHomeTestimonials(visibleReviews);
+        }
+        if (productsResult.status === "fulfilled") {
+          const visibleProducts = productsResult.value.filter((product) => product.is_published !== false && product.published !== false);
+          const featuredProducts = visibleProducts.filter((product) => product.featured || product.is_featured);
+          setHomeFeaturedBooks((featuredProducts.length ? featuredProducts : visibleProducts).slice(0, 5));
+        }
+        if (portfolioResult.status === "fulfilled") {
+          const visiblePortfolio = portfolioResult.value.filter((project) => project.is_published !== false && project.status !== "Draft");
+          const highlights = settingsResult.status === "fulfilled"
+            ? getJsonSetting(settingsResult.value, "collection-featured-highlights", featuredWorkHighlights)
+            : featuredWorkHighlights;
+          setHomeFeaturedWorkItems(resolveFeaturedWorkItems(highlights, visiblePortfolio));
+        }
+        if (brandsResult.status === "fulfilled") {
+          const visibleBrands = brandsResult.value.filter((brand) => brand.status !== "Hidden" && brand.is_published !== false);
+          setHomeBrands(visibleBrands.map(normalizeBrandCard));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div>
       <Header />
@@ -2392,7 +2849,7 @@ function HomePage() {
               <p>Publishing is where we begin. Learning, media, and future innovation are where the journey continues.</p>
             </div>
             <div className="brand-grid">
-              {brands.map(({ icon: Icon, ...brand }) => (
+              {homeBrands.map(({ icon: Icon, ...brand }) => (
                 <a href={brand.href} className="brand-card" key={brand.name}>
                   <span className="brand-code">{brand.code}</span>
                   <Icon size={30} />
@@ -2416,7 +2873,7 @@ function HomePage() {
               action={<a className="text-link" href="/shop">Visit the shop <ArrowRight size={17} /></a>}
             />
             <div className="book-grid">
-              {books.map((book, index) => <BookCover book={book} index={index} key={book.title} />)}
+              {homeFeaturedBooks.map((book, index) => <BookCover book={book} index={index} key={book.id || book.slug || book.title} />)}
             </div>
           </div>
         </section>
@@ -2455,8 +2912,8 @@ function HomePage() {
               action={<a className="button button-outline" href="/portfolio">View Full Portfolio <ArrowRight size={17} /></a>}
             />
             <div className="project-grid portfolio-grid">
-              {featuredProjects.map((project, index) => (
-                <PortfolioCard project={project} index={index} key={`${project.category}-${project.image}`} />
+              {homeFeaturedWorkItems.map((project, index) => (
+                <PortfolioCard project={project} index={index} key={project.id || `${project.category}-${project.image}-${project.title}`} />
               ))}
             </div>
           </div>
@@ -2469,7 +2926,7 @@ function HomePage() {
               <h2>Kind words from people whose ideas <span>took flight.</span></h2>
             </div>
             <div className="testimonial-grid" aria-label="Featured client testimonials">
-              {testimonials.slice(0, 3).map((testimonial) => (
+              {homeTestimonials.slice(0, 3).map((testimonial) => (
                 <article className="testimonial-card" key={testimonial.name}>
                   <span className="testimonial-stars" aria-label="5 star review">★★★★★</span>
                   <p>“{testimonial.quote}”</p>
@@ -2498,31 +2955,7 @@ function HomePage() {
         </section>
       </main>
 
-      <footer className="footer">
-        <BrandStickerField className="footer-sticker-field" />
-        <div className="container footer-grid">
-          <div className="footer-brand">
-            <BrandMark light />
-            <p>Helping authors create, publish, and share professional books while building educational resources, creative media, and future innovations.</p>
-            <a className="footer-brand-link" href="/blog">Blog Posts <ArrowRight size={15} /></a>
-            <div className="socials">
-              <a href="#youtube" aria-label="YouTube"><Youtube /></a>
-              <a href="#instagram" aria-label="Instagram"><Instagram /></a>
-              <a href="#facebook" aria-label="Facebook"><Facebook /></a>
-              <a href="#linkedin" aria-label="LinkedIn"><Linkedin /></a>
-              <a href="#tiktok" aria-label="TikTok"><Tiktok /></a>
-            </div>
-          </div>
-          <div><h3>Explore</h3><a href="/about">About</a><a href="#books">Shop</a><a href="/courses">Academy</a><a href="/blog">Blog Posts</a><a href="#brands">Media</a><a href="#testimonials">Testimonials</a></div>
-          <div><h3>BookLab</h3><a href="#booklab-services">Book formatting</a><a href="#booklab-services">Book design</a><a href="#booklab-services">KDP support</a><a href="#booklab-services">EPUB formatting</a><a href="#portfolio">Portfolio</a></div>
-          <div><h3>More Services</h3><a href="#booklab-services">Children's books</a><a href="#booklab-services">Workbook design</a><a href="#booklab-services">A+ content design</a><a href="#booklab-services">Book trailers</a></div>
-          <div><h3>Contact</h3><a href="mailto:hello@danajet.com">hello@danajet.com</a><a href="#whatsapp"><MessageCircle size={15} /> WhatsApp</a><a href="#youtube">YouTube</a><a href="#instagram">Instagram</a><a href="#tiktok">TikTok</a></div>
-        </div>
-        <div className="container footer-bottom">
-          <p>© 2026 Danajet Nig. Ltd. All Rights Reserved.</p>
-          <div><a href="#privacy">Privacy Policy</a><a href="#terms">Terms & Conditions</a></div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
@@ -2530,9 +2963,33 @@ function HomePage() {
 function PortfolioPage() {
   const [activePortfolio, setActivePortfolio] = useState("all");
   const [selectedProject, setSelectedProject] = useState(null);
+  const [portfolioItems, setPortfolioItems] = useState(projects);
   const visibleProjects = activePortfolio === "all"
-    ? projects
-    : projects.filter((project) => project.category === activePortfolio);
+    ? portfolioItems
+    : portfolioItems.filter((project) => project.category === activePortfolio);
+
+  useEffect(() => {
+    let isMounted = true;
+    listAdminPortfolio()
+      .then((items) => {
+        if (!isMounted) return;
+        setPortfolioItems(items.filter((project) => project.is_published !== false && project.status !== "Draft"));
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProject) return;
+    const refreshedProject = portfolioItems.find((project) => project.id === selectedProject.id);
+    if (refreshedProject) {
+      setSelectedProject(refreshedProject);
+    } else if (!portfolioItems.some((project) => project.title === selectedProject.title && project.image === selectedProject.image)) {
+      setSelectedProject(null);
+    }
+  }, [portfolioItems, selectedProject]);
 
   return (
     <div className="portfolio-page">
@@ -2567,7 +3024,7 @@ function PortfolioPage() {
             <div className="portfolio-count">{visibleProjects.length} projects</div>
             <div className="project-grid portfolio-grid">
               {visibleProjects.map((project, index) => (
-                <PortfolioCard project={project} index={index} onOpen={setSelectedProject} key={`${project.category}-${project.image}`} />
+                <PortfolioCard project={project} index={index} onOpen={setSelectedProject} key={project.id || `${project.category}-${project.image}-${project.title}`} />
               ))}
             </div>
           </div>
@@ -2588,7 +3045,7 @@ function PortfolioPage() {
           <button className="lightbox-backdrop" type="button" onClick={() => setSelectedProject(null)} aria-label="Close portfolio image" />
           <div className="lightbox-content">
             <button className="lightbox-close" type="button" onClick={() => setSelectedProject(null)} aria-label="Close"><X size={24} /></button>
-            <img src={`/assets/portfolio/page-${selectedProject.image}.jpg`} alt={`${selectedProject.title} portfolio presentation`} />
+            <img src={getPortfolioImageSrc(selectedProject)} alt={`${selectedProject.title} portfolio presentation`} />
             <div>
               <p>{portfolioCategories.find((category) => category.id === selectedProject.category)?.label}</p>
               <h3>{selectedProject.title}</h3>
@@ -2602,8 +3059,25 @@ function PortfolioPage() {
 }
 
 function ReviewsPage() {
-  const visibleReviews = testimonials;
+  const [visibleReviews, setVisibleReviews] = useState(testimonials);
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    listAdminReviews()
+      .then((reviews) => {
+        if (!isMounted) return;
+        const publishedReviews = reviews.filter((review) => review.is_published !== false);
+        setVisibleReviews(publishedReviews.length ? publishedReviews : testimonials);
+        setActiveReviewIndex(0);
+      })
+      .catch(() => {
+        if (isMounted) setVisibleReviews(testimonials);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!visibleReviews.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -2715,8 +3189,6 @@ function ReviewsPage() {
 
 const adminNavItems = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "hero", label: "Homepage Hero", icon: Sparkles },
-  { id: "navigation", label: "Navigation", icon: Menu },
   { id: "about-control", label: "About Page", icon: Quote },
   { id: "services-control", label: "Services", icon: PackageCheck },
   { id: "books", label: "Books & Shop", icon: ShoppingBag },
@@ -2729,10 +3201,8 @@ const adminNavItems = [
   { id: "requests", label: "Project Requests", icon: Inbox },
   { id: "form-options", label: "Request Form", icon: ClipboardList },
   { id: "featured", label: "Featured Work", icon: Star },
-  { id: "cta-control", label: "CTA Sections", icon: Send },
   { id: "contact-control", label: "Contact/Footer", icon: MessageCircle },
   { id: "media-library", label: "Media Library", icon: Upload },
-  { id: "settings", label: "Site Controls", icon: Settings },
 ];
 
 const adminProjectRequests = [
@@ -2750,26 +3220,17 @@ const adminApiMap = [
   "POST /api/admin/media/upload/",
 ];
 
-const adminHeroDefaults = {
-  announcement: "Worked with authors, educators, and publishers worldwide.",
-  headline: "Let's make your book the next standout.",
-  subtitle: "Personal book formatting, design, and publishing support that helps your message reach more readers.",
-  primaryCta: "Start a Project",
-  primaryUrl: "/request-project",
-  secondaryCta: "Shop My Books",
-  secondaryUrl: "/shop",
-  heroImage: "/assets/hero-books-cutout.png",
-};
-
 const adminAboutDefaults = {
-  eyebrow: "About Danajet",
-  headline: "A creative ecosystem for authors, learning, media, and bold future ideas.",
-  founderBio: "Daniel helps authors transform book ideas into polished, publish-ready projects with thoughtful design, formatting, and publishing support.",
-  story: "Danajet began as a personal creative service and is growing into BookLab, Media, Academy, and future transport innovation.",
+  founderRole: "Founder and Creative Lead",
+  founderName: "Daniel - Ajetunmobi",
+  founderTagline: "Helping authors, learners, and creative brands turn ideas into polished work.",
+  intro: "I'm Daniel, the founder and creative mind behind Danajet. My work brings together book design, publishing support, storytelling, education, and long-term innovation under one clear creative vision.",
+  journey: "My journey started with a passion for creativity, storytelling, and helping ideas come to life. The name \"Danajet\" was born by combining \"Dan\" from my first name, Daniel, and \"Ajet\" from my surname, Ajetunmobi. More than just a name, it represents my belief that great ideas deserve the opportunity to take flight. What began as a love for designing and creating has grown into a brand dedicated to helping authors transform their manuscripts into professional, publish-ready books.",
+  ecosystem: "Danajet is more than one service. It is a growing ecosystem for creativity, education, media, and future innovation, with each part created to help people present their work with more confidence and clarity.",
+  beliefTitle: "Core belief",
+  beliefText: "Great ideas deserve to be seen, experienced, and shared with the world.",
+  invitation: "Whether you're an author with a manuscript waiting to become a beautiful book, a learner seeking new skills, or a reader exploring my creations, I invite you to be part of the Danajet journey.",
   video: "/assets/about-brand-intro.mp4",
-  statOne: "100+ books supported",
-  statTwo: "Global author clients",
-  statThree: "Design, publishing, and media",
 };
 
 const adminCtaDefaults = [
@@ -2789,6 +3250,46 @@ const adminContactDefaults = {
   linkedin: "#linkedin",
   footerCopy: "Helping authors create, publish, and share professional books while building educational resources, creative media, and future innovations.",
 };
+
+function getSettingsGroup(settings, groupKey) {
+  const prefix = `${groupKey}-`;
+  return settings.reduce((values, setting) => {
+    if (setting.key?.startsWith(prefix)) {
+      return { ...values, [setting.key.slice(prefix.length)]: setting.value };
+    }
+    return values;
+  }, {});
+}
+
+function getJsonSetting(settings, key, fallback) {
+  const setting = settings.find((item) => item.key === key);
+  if (!setting) return fallback;
+  if (Array.isArray(setting.value_json) || Object.keys(setting.value_json || {}).length) return setting.value_json;
+  try {
+    return JSON.parse(setting.value || "");
+  } catch {
+    return fallback;
+  }
+}
+
+function useFooterSettings() {
+  const [footerSettings, setFooterSettings] = useState(adminContactDefaults);
+
+  useEffect(() => {
+    let isMounted = true;
+    listAdminSettings()
+      .then((settings) => {
+        if (!isMounted) return;
+        setFooterSettings((current) => ({ ...current, ...getSettingsGroup(settings, "contact-footer") }));
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  return footerSettings;
+}
 
 const adminSiteDefaults = {
   logo: "/assets/danajet-logo.svg",
@@ -2832,9 +3333,9 @@ function AdminSectionHeader({ eyebrow, title, copy, action }) {
   );
 }
 
-function AdminActionButton({ children, variant = "dark", icon: Icon = PlusCircle, onClick }) {
+function AdminActionButton({ children, variant = "dark", icon: Icon = PlusCircle, onClick, disabled = false }) {
   return (
-    <button className={`admin-action admin-action-${variant}`} type="button" onClick={onClick}>
+    <button className={`admin-action admin-action-${variant}`} type="button" onClick={onClick} disabled={disabled}>
       <Icon size={16} /> {children}
     </button>
   );
@@ -2862,7 +3363,7 @@ function downloadAdminReport(filename, content) {
   URL.revokeObjectURL(url);
 }
 
-function AdminBooksPanel({ products, onAddProduct, onDeleteProduct, onToggleFeatured, query }) {
+function AdminBooksPanel({ products, onAddProduct, onEditProduct, onDeleteProduct, onToggleFeatured, query }) {
   const visibleProducts = products.filter((product) =>
     `${product.title} ${product.author} ${product.category_label}`.toLowerCase().includes(query)
   );
@@ -2883,10 +3384,10 @@ function AdminBooksPanel({ products, onAddProduct, onDeleteProduct, onToggleFeat
             <span>{product.category_label}</span>
             <span>{formatPrice(product)}</span>
             <span>{product.inventory}</span>
-            <span><mark>{product.is_featured ? "Featured" : "Draft-ready"}</mark></span>
+            <span><mark>{product.published === false ? "Hidden" : "Visible"}</mark></span>
             <span className="admin-row-actions">
-              <button type="button" onClick={() => onToggleFeatured(product.id)} aria-label={`Toggle ${product.title} featured status`}><Eye size={15} /></button>
-              <button type="button" onClick={() => onToggleFeatured(product.id)} aria-label={`Edit ${product.title}`}><Edit3 size={15} /></button>
+              <button type="button" onClick={() => onToggleFeatured(product.id)} aria-label={`Show or hide ${product.title} on the website`}><Eye size={15} /></button>
+              <button type="button" onClick={() => onEditProduct(product)} aria-label={`Edit ${product.title}`}><Edit3 size={15} /></button>
               <button type="button" onClick={() => onDeleteProduct(product.id)} aria-label={`Delete ${product.title}`}><Trash2 size={15} /></button>
             </span>
           </div>
@@ -2913,7 +3414,7 @@ function AdminCoursesPanel({ courses, onAddCourse, onEditCourse, onDeleteCourse,
       <div className="admin-card-grid">
         {visibleCourses.map((course, index) => (
           <article className="admin-content-card" key={course.title}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
+            {course.thumbnailUrl ? <img className="admin-content-thumb" src={resolveMediaUrl(course.thumbnailUrl)} alt="" /> : <span>{String(index + 1).padStart(2, "0")}</span>}
             <h3>{course.title}</h3>
             <p>{course.category}</p>
             <div><mark>{course.status}</mark><small>{course.price} waitlist</small></div>
@@ -2947,7 +3448,7 @@ function AdminPortfolioPanel({ portfolioItems, onAddPortfolioItem, onEditPortfol
       <div className="admin-portfolio-grid">
         {visiblePortfolioItems.map((project) => (
           <article className="admin-portfolio-card" key={project.id}>
-            <img src={`/assets/portfolio/page-${project.image}.jpg`} alt="" />
+            <img src={getPortfolioImageSrc(project)} alt="" />
             <div>
               <h3>{project.title}</h3>
               <p>{portfolioCategories.find((category) => category.id === project.category)?.label}</p>
@@ -2994,7 +3495,7 @@ function AdminReviewsPanel({ reviews, onAddReview, onEditReview, onDeleteReview,
   );
 }
 
-function AdminRequestsPanel({ requests, onCycleRequestStatus, onDownloadRequest, onDownloadAllRequests, query }) {
+function AdminRequestsPanel({ requests, onViewRequest, onCycleRequestStatus, onDownloadRequest, onDownloadAllRequests, query }) {
   const visibleRequests = requests.filter((request) =>
     `${request.name} ${request.service} ${request.budget} ${request.stage} ${request.status}`.toLowerCase().includes(query)
   );
@@ -3015,8 +3516,8 @@ function AdminRequestsPanel({ requests, onCycleRequestStatus, onDownloadRequest,
             <span>{request.budget}</span>
             <small>{request.stage} - {request.date}</small>
             <footer>
-              <button type="button" onClick={() => onCycleRequestStatus(request.name)}>Open Request</button>
-              <button type="button" onClick={() => onCycleRequestStatus(request.name)}>Next Status</button>
+              <button type="button" onClick={() => onViewRequest(request)}>Open Request</button>
+              <button type="button" onClick={() => onCycleRequestStatus(request.id)}>Next Status</button>
               <button type="button" onClick={() => onDownloadRequest(request)}><Download size={14} /> Report</button>
             </footer>
           </article>
@@ -3029,8 +3530,8 @@ function AdminRequestsPanel({ requests, onCycleRequestStatus, onDownloadRequest,
 
 function AdminFeaturedPanel({ highlights, onAddHighlight, onEditHighlight, onDeleteHighlight, query }) {
   const visibleHighlights = highlights
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.toLowerCase().includes(query));
+    .map((item, index) => ({ item: normalizeFeaturedHighlight(item, index), index }))
+    .filter(({ item }) => item.title.toLowerCase().includes(query));
 
   return (
     <section className="admin-panel">
@@ -3042,9 +3543,10 @@ function AdminFeaturedPanel({ highlights, onAddHighlight, onEditHighlight, onDel
       />
       <div className="admin-feature-list">
         {visibleHighlights.map(({ item, index }) => (
-          <article key={`${item}-${index}`}>
+          <article key={`${item.title}-${index}`}>
             <span>{index + 1}</span>
-            <strong>{item}</strong>
+            {item.imageUrl ? <img className="admin-feature-thumb" src={resolveMediaUrl(item.imageUrl)} alt="" /> : <div className="admin-feature-thumb admin-feature-thumb-empty" />}
+            <strong>{item.title}</strong>
             <button type="button" onClick={() => onEditHighlight(index)} aria-label={`Edit featured work ${index + 1}`}><Edit3 size={15} /></button>
             <button type="button" onClick={() => onDeleteHighlight(index)}><Trash2 size={15} /></button>
           </article>
@@ -3062,7 +3564,7 @@ function AdminTextControlPanel({ eyebrow, title, copy, values, fields, onUpdate,
         eyebrow={eyebrow}
         title={title}
         copy={copy}
-        action={<AdminActionButton icon={Save} onClick={onSave}>Save Draft</AdminActionButton>}
+        action={<AdminActionButton icon={Save} onClick={onSave}>Save Changes</AdminActionButton>}
       />
       <div className="admin-editor-grid admin-editor-grid-balanced">
         {fields.map((field) => (
@@ -3084,7 +3586,65 @@ function AdminTextControlPanel({ eyebrow, title, copy, values, fields, onUpdate,
   );
 }
 
-function AdminCollectionPanel({ eyebrow, title, copy, items, fields, query, onAdd, onUpdate, onDelete, addLabel = "Add Item" }) {
+function AdminAboutPanel({ values, onUpdate, onSave, onVideoFileChange, onRemoveVideo, uploadProgress = 0, isUploading = false }) {
+  const fields = [
+    { key: "founderRole", label: "Founder Role" },
+    { key: "founderName", label: "Founder Name" },
+    { key: "founderTagline", label: "Founder Tagline", type: "textarea", wide: true },
+    { key: "intro", label: "Intro Paragraph", type: "textarea", wide: true },
+    { key: "journey", label: "Journey Paragraph", type: "textarea", wide: true },
+    { key: "ecosystem", label: "Ecosystem Paragraph", type: "textarea", wide: true },
+    { key: "beliefTitle", label: "Belief Label" },
+    { key: "beliefText", label: "Belief Text", type: "textarea", wide: true },
+    { key: "invitation", label: "Invitation Paragraph", type: "textarea", wide: true },
+    { key: "video", label: "Brand Intro Video Path / URL", wide: true },
+  ];
+
+  return (
+    <section className="admin-panel">
+      <AdminSectionHeader
+        eyebrow="About page"
+        title="Founder story and page content"
+        copy="Edit the founder note, story copy, core belief, invitation, and brand intro video."
+        action={<AdminActionButton icon={Save} onClick={onSave} disabled={isUploading}>{isUploading ? "Saving..." : "Save Changes"}</AdminActionButton>}
+      />
+      <div className="admin-editor-grid">
+        {fields.map((field) => (
+          <label className={field.wide ? "admin-wide-field" : ""} key={field.key}>
+            {field.label}
+            {field.type === "textarea" ? (
+              <textarea value={values[field.key] || ""} onChange={(event) => onUpdate(field.key, event.target.value)} />
+            ) : (
+              <input value={values[field.key] || ""} onChange={(event) => onUpdate(field.key, event.target.value)} />
+            )}
+          </label>
+        ))}
+        <label className="admin-upload-box admin-click-upload admin-wide-field">
+          <Upload size={20} />
+          <strong>{values.videoFile?.name || "Upload About intro video"}</strong>
+          <span>Choose a video file to upload it immediately. Click Save Changes after upload to publish.</span>
+          <input type="file" accept="video/*" onChange={(event) => onVideoFileChange(event.target.files?.[0] || null)} />
+        </label>
+        {isUploading && (
+          <div className="admin-upload-progress admin-wide-field" aria-label="Video upload progress">
+            <span style={{ width: `${uploadProgress}%` }} />
+            <strong>{uploadProgress}%</strong>
+          </div>
+        )}
+        {values.video && (
+          <div className="admin-video-preview-block admin-wide-field">
+            <video src={values.video} controls />
+            <div className="admin-video-actions">
+              <button className="admin-remove-media" type="button" onClick={onRemoveVideo} disabled={isUploading}><Trash2 size={15} /> Remove Video</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AdminCollectionPanel({ eyebrow, title, copy, items, fields, query, onAdd, onUpdate, onDelete, onSave, addLabel = "Add Item" }) {
   const visibleItems = items.filter((item) =>
     Object.values(item).join(" ").toLowerCase().includes(query)
   );
@@ -3095,7 +3655,12 @@ function AdminCollectionPanel({ eyebrow, title, copy, items, fields, query, onAd
         eyebrow={eyebrow}
         title={title}
         copy={copy}
-        action={<AdminActionButton onClick={onAdd}>{addLabel}</AdminActionButton>}
+        action={(
+          <div className="admin-header-actions">
+            {onSave && <AdminActionButton icon={Save} variant="light" onClick={onSave}>Save Changes</AdminActionButton>}
+            <AdminActionButton onClick={onAdd}>{addLabel}</AdminActionButton>
+          </div>
+        )}
       />
       <div className="admin-control-list">
         {visibleItems.map((item, index) => (
@@ -3104,6 +3669,11 @@ function AdminCollectionPanel({ eyebrow, title, copy, items, fields, query, onAd
               <span>{String(index + 1).padStart(2, "0")}</span>
               <button type="button" onClick={() => onDelete(item.id)} aria-label={`Delete ${item.title || item.label || item.name || "item"}`}><Trash2 size={15} /></button>
             </div>
+            {item.path && (
+              <div className="admin-collection-preview">
+                {String(item.type || "").toLowerCase().includes("video") ? <video src={item.path} controls /> : <img src={item.path} alt="" />}
+              </div>
+            )}
             <div className="admin-control-fields">
               {fields.map((field) => (
                 <label className={field.wide ? "admin-wide-field" : ""} key={field.key}>
@@ -3135,7 +3705,7 @@ function AdminRequestFormOptionsPanel({ options, onUpdate, onSave }) {
         eyebrow="Lead form controls"
         title="Request form options and messages"
         copy="Edit checkboxes, dropdown options, confidentiality copy, and the thank-you message that appears after submission."
-        action={<AdminActionButton icon={Save} onClick={onSave}>Save Draft</AdminActionButton>}
+        action={<AdminActionButton icon={Save} onClick={onSave}>Save Changes</AdminActionButton>}
       />
       <div className="admin-editor-grid admin-editor-grid-balanced">
         <label className="admin-wide-field">Service Checkboxes<textarea value={options.services} onChange={(event) => onUpdate("services", event.target.value)} /></label>
@@ -3157,8 +3727,8 @@ function AdminSettingsPanel({ settings, onUpdateSetting, onSaveSettings }) {
       <AdminSectionHeader
         eyebrow="API ready"
         title="Site controls and Django REST API map"
-        copy="Frontend-only for now. Edit global site metadata, brand assets, maintenance mode, and the backend endpoints this dashboard is designed to connect with later."
-        action={<AdminActionButton icon={Save} onClick={onSaveSettings}>Save Draft</AdminActionButton>}
+        copy="Edit global site metadata, brand assets, maintenance mode, and saved dashboard settings through the Django API."
+        action={<AdminActionButton icon={Save} onClick={onSaveSettings}>Save Changes</AdminActionButton>}
       />
       <div className="admin-api-grid">
         {adminApiMap.map((endpoint) => <code key={endpoint}>{endpoint}</code>)}
@@ -3197,18 +3767,128 @@ function AdminModal({ title, eyebrow, children, onClose, footer }) {
   );
 }
 
-function AdminDashboardPage() {
+function AdminLoginPage({ onAuthenticated }) {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
+    try {
+      const user = await loginUser({ email: form.email.trim(), password: form.password });
+      if (!user?.is_staff && !user?.is_superuser) {
+        await logoutUser().catch(() => {});
+        setError("This account does not have admin access.");
+        return;
+      }
+      onAuthenticated(user);
+    } catch (apiError) {
+      setError(apiError.message || "Please check your admin credentials.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="admin-login-page">
+      <div className="admin-login-shell">
+        <form className="login-panel admin-login-panel" onSubmit={handleSubmit}>
+          <div className="admin-login-heading">
+            <span><UserRound size={22} /></span>
+            <div>
+              <p className="eyebrow">Admin login</p>
+              <h2>Dashboard access.</h2>
+            </div>
+          </div>
+          <label>
+            <span>Email address</span>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              placeholder="admin@example.com"
+              autoComplete="email"
+              required
+              autoFocus
+            />
+          </label>
+          <label>
+            <span>Password</span>
+            <input
+              type="password"
+              value={form.password}
+              onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+              placeholder="********"
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          {error && <p className="form-error">{error}</p>}
+          <button className="button" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Checking" : "Login to Admin"} <ArrowRight size={17} />
+          </button>
+          <a className="text-link" href="/">Back to website <ArrowRight size={16} /></a>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AdminPage() {
+  const [adminUser, setAdminUser] = useState(null);
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCurrentUser()
+      .then((user) => {
+        if (isMounted && (user?.is_staff || user?.is_superuser)) setAdminUser(user);
+      })
+      .finally(() => {
+        if (isMounted) setIsChecking(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (isChecking) {
+    return (
+      <div className="admin-login-page">
+        <div className="admin-login-loading-card">
+          <BrandMark />
+          <div className="admin-login-loading">Checking admin session.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!adminUser) {
+    return <AdminLoginPage onAuthenticated={setAdminUser} />;
+  }
+
+  return <AdminDashboardPage onLogout={() => setAdminUser(null)} />;
+}
+
+function AdminDashboardPage({ onLogout }) {
   const [activeAdminSection, setActiveAdminSection] = useState("overview");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const sidebarCloseTimer = useRef(null);
   const [activeAdminModal, setActiveAdminModal] = useState(null);
+  const [editingProductId, setEditingProductId] = useState(null);
   const [editingCourseId, setEditingCourseId] = useState(null);
   const [editingPortfolioId, setEditingPortfolioId] = useState(null);
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [editingHighlightIndex, setEditingHighlightIndex] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [adminSearch, setAdminSearch] = useState("");
-  const [adminNotice, setAdminNotice] = useState("Local dashboard changes are not connected to Django yet.");
+  const [adminNotice, setAdminNotice] = useState("Loading dashboard content from Django.");
+  const [adminToast, setAdminToast] = useState(null);
+  const adminToastTimer = useRef(null);
+  const [adminDataLoading, setAdminDataLoading] = useState(true);
   const [adminProducts, setAdminProducts] = useState(() => mockProducts.slice(0, 6));
   const [adminCourses, setAdminCourses] = useState(() =>
     courseCategories.flatMap((category, categoryIndex) =>
@@ -3227,15 +3907,10 @@ function AdminDashboardPage() {
   const [adminReviews, setAdminReviews] = useState(() => testimonials.map((review, index) => ({ ...review, id: `review-${index}`, rating: 5 })));
   const [adminRequests, setAdminRequests] = useState(adminProjectRequests);
   const [adminHighlights, setAdminHighlights] = useState(featuredWorkHighlights);
-  const [adminHero, setAdminHero] = useState(adminHeroDefaults);
-  const [adminNavLinks, setAdminNavLinks] = useState(() => navItems.map((item, index) => ({
-    id: `nav-${index}`,
-    label: item.label,
-    href: item.href,
-    dropdown: Array.isArray(item.children) ? item.children.map((child) => (typeof child === "string" ? child : child.label)).join(", ") : "",
-    status: "Visible",
-  })));
   const [adminAbout, setAdminAbout] = useState(adminAboutDefaults);
+  const [aboutVideoUploadProgress, setAboutVideoUploadProgress] = useState(0);
+  const [isAboutVideoUploading, setIsAboutVideoUploading] = useState(false);
+  const [courseMediaUpload, setCourseMediaUpload] = useState({ kind: "", progress: 0, uploading: false });
   const [adminServiceCards, setAdminServiceCards] = useState(() => services.map((service, index) => ({
     id: `service-${index}`,
     title: service.title,
@@ -3286,25 +3961,54 @@ function AdminDashboardPage() {
   });
   const [bookDraft, setBookDraft] = useState({
     title: "",
+    subtitle: "",
     author: "",
-    category_label: "",
+    category: "all",
+    category_label: "Shop all",
     price: "",
+    compareAtPrice: "",
     inventory: "",
+    sku: "",
     amazonUrl: "",
+    externalUrl: "",
+    imageUrl: "",
+    imageUrl2: "",
+    imageUrl3: "",
+    imageFiles: [],
+    galleryImages: [],
+    cover: "orange",
+    accent: "#e3450b",
+    ageRange: "",
+    format: "",
+    featured: false,
+    published: true,
+    digital: false,
+    featuresText: "",
     description: "",
   });
   const [courseDraft, setCourseDraft] = useState({
     title: "",
+    subtitle: "",
     category: "Book Design & Publishing",
     price: "$0",
     status: "Draft",
     embedUrl: "",
+    introVideoUrl: "",
+    thumbnailUrl: "",
+    thumbnailFile: null,
+    introVideoFile: null,
+    duration: "",
+    level: "",
+    outcomesText: "",
+    resourcesText: "",
     description: "",
   });
   const [portfolioDraft, setPortfolioDraft] = useState({
     title: "",
     category: "children",
     image: "03",
+    imageUrl: "",
+    imageFile: null,
     client: "",
     status: "Draft",
     embedUrl: "",
@@ -3320,12 +4024,28 @@ function AdminDashboardPage() {
     ctaLabel: "View on Amazon",
     ctaUrl: "",
     image: "",
+    imageFile: null,
   });
   const [highlightDraft, setHighlightDraft] = useState("");
+  const [highlightImageUrl, setHighlightImageUrl] = useState("");
+  const [productImagePreviews, setProductImagePreviews] = useState([]);
+  const [portfolioImagePreview, setPortfolioImagePreview] = useState("");
+  const [reviewImagePreview, setReviewImagePreview] = useState("");
+  const [highlightImagePreview, setHighlightImagePreview] = useState("");
+  const [highlightImageUploading, setHighlightImageUploading] = useState(false);
 
   const normalizedAdminSearch = adminSearch.trim().toLowerCase();
   const isSidebarOpen = !isSidebarCollapsed || isSidebarHovered;
-  const showAdminNotice = (message) => setAdminNotice(message);
+  const showAdminNotice = (message, type) => {
+    const resolvedType = type || (/could not|error|failed|not logged|unauthorized|forbidden/i.test(message) ? "error" : "success");
+    setAdminNotice(message);
+    setAdminToast({ message, type: resolvedType });
+    if (adminToastTimer.current) clearTimeout(adminToastTimer.current);
+    adminToastTimer.current = setTimeout(() => {
+      setAdminToast(null);
+      adminToastTimer.current = null;
+    }, 4200);
+  };
   const clearSidebarCloseTimer = () => {
     if (sidebarCloseTimer.current) {
       clearTimeout(sidebarCloseTimer.current);
@@ -3346,23 +4066,273 @@ function AdminDashboardPage() {
   };
   const deleteAdminCollectionItem = (setter, id, label = "Item") => {
     setter((current) => current.filter((item) => item.id !== id));
-    showAdminNotice(`${label} removed locally.`);
+    showAdminNotice(`${label} removed. Click Save Changes to persist it.`);
   };
   const addAdminCollectionItem = (setter, prefix, item, label = "Item") => {
     setter((current) => [{ id: makeAdminId(prefix), ...item }, ...current]);
-    showAdminNotice(`${label} added locally.`);
+    showAdminNotice(`${label} added. Click Save Changes to persist it.`);
+  };
+  const saveSettingsDraft = async (groupKey, values, label = "Draft") => {
+    try {
+      await Promise.all(Object.entries(values).map(([key, value]) => (
+        saveAdminSetting(`${groupKey}-${key}`, value, `${label}: ${key}`)
+      )));
+      showAdminNotice(`${label} saved to Django site settings.`);
+    } catch (error) {
+      showAdminNotice(`${error.message || `${label} could not be saved.`} Make sure you are logged in as staff.`);
+    }
+  };
+  const saveCollectionDraft = async (key, items, label) => {
+    try {
+      await saveAdminSetting(`collection-${key}`, items, `${label} collection`);
+      showAdminNotice(`${label} saved to Django site settings.`);
+    } catch (error) {
+      showAdminNotice(`${error.message || `${label} could not be saved.`} Make sure you are logged in as staff.`);
+    }
+  };
+  const saveBrandCollection = async () => {
+    try {
+      const savedBrands = await Promise.all(adminBrandSections.map((item) => saveAdminBrand(item, item.apiId || item.slug ? item : null)));
+      setAdminBrandSections(savedBrands);
+      showAdminNotice("Brands saved to Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Brands could not be saved."} Make sure you are logged in as staff.`, "error");
+    }
+  };
+  const deleteBrandItem = async (id) => {
+    const item = adminBrandSections.find((brand) => brand.id === id);
+    if (!item) return;
+    try {
+      if (item.apiId || item.slug) await deleteAdminBrand(item);
+      setAdminBrandSections((current) => current.filter((brand) => brand.id !== id));
+      showAdminNotice("Brand removed from Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Brand could not be deleted."} Make sure you are logged in as staff.`, "error");
+    }
+  };
+  const saveMediaLibrary = async () => {
+    try {
+      const savedMedia = await Promise.all(adminMediaLibrary.map((item) => saveAdminMedia(item, item.apiId || item.slug ? item : null)));
+      setAdminMediaLibrary(savedMedia);
+      showAdminNotice("Media library saved to Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Media library could not be saved."} Make sure you are logged in as staff.`, "error");
+    }
+  };
+  const deleteMediaItem = async (id) => {
+    const item = adminMediaLibrary.find((asset) => asset.id === id);
+    if (!item) return;
+    try {
+      if (item.apiId || item.slug) await deleteAdminMedia(item);
+      setAdminMediaLibrary((current) => current.filter((asset) => asset.id !== id));
+      showAdminNotice("Media item removed from Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Media item could not be deleted."} Make sure you are logged in as staff.`, "error");
+    }
+  };
+  const saveAboutPage = async () => {
+    if (isAboutVideoUploading) return;
+    try {
+      const { videoFile, ...persistedAbout } = adminAbout;
+      await saveSettingsDraft("about-page", persistedAbout, "About page");
+    } catch (error) {
+      showAdminNotice(`${error.message || "About page could not be saved."} Make sure you are logged in as staff.`, "error");
+    }
+  };
+  const handleAboutVideoSelected = async (file) => {
+    if (!file) return;
+    setAdminAbout((current) => ({ ...current, videoFile: file }));
+    setIsAboutVideoUploading(true);
+    setAboutVideoUploadProgress(12);
+    try {
+      setAboutVideoUploadProgress(35);
+      const uploaded = await uploadAdminMediaFile(file, "About page intro video");
+      setAboutVideoUploadProgress(82);
+      setAdminAbout((current) => ({ ...current, video: uploaded.path, videoFile: null }));
+      setAboutVideoUploadProgress(100);
+      showAdminNotice("About video uploaded. Click Save Changes to publish it.");
+    } catch (error) {
+      setAdminAbout((current) => ({ ...current, videoFile: null }));
+      showAdminNotice(`${error.message || "About video could not be uploaded."} Make sure you are logged in as staff.`, "error");
+    } finally {
+      window.setTimeout(() => {
+        setIsAboutVideoUploading(false);
+        setAboutVideoUploadProgress(0);
+      }, 650);
+    }
+  };
+  const removeAboutVideo = async () => {
+    if (isAboutVideoUploading) return;
+    const nextAbout = { ...adminAbout, video: "", videoFile: null };
+    setAdminAbout(nextAbout);
+    try {
+      const { videoFile, ...persistedAbout } = nextAbout;
+      await saveSettingsDraft("about-page", persistedAbout, "About page");
+      showAdminNotice("About video removed.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "About video could not be removed."} Make sure you are logged in as staff.`, "error");
+    }
+  };
+  const saveShopCategories = async () => {
+    try {
+      const savedItems = [];
+      for (const item of adminShopCategoryItems) {
+        const saved = await saveAdminShopCategory(item);
+        savedItems.push(saved);
+      }
+      setAdminShopCategoryItems(savedItems);
+      showAdminNotice("Shop categories saved to Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Shop categories could not be saved."} Make sure you are logged in as staff.`, "error");
+    }
+  };
+  const handleDeleteShopCategory = async (id) => {
+    const category = adminShopCategoryItems.find((item) => item.id === id);
+    if (!category) return;
+    try {
+      if (category.apiId) await deleteAdminShopCategory(category);
+      setAdminShopCategoryItems((current) => current.filter((item) => item.id !== id));
+      showAdminNotice("Shop category deleted from Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Shop category could not be deleted."} Make sure no products depend on it.`, "error");
+    }
   };
 
-  useEffect(() => () => clearSidebarCloseTimer(), []);
+  useEffect(() => () => {
+    clearSidebarCloseTimer();
+    if (adminToastTimer.current) clearTimeout(adminToastTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const fileUrls = (bookDraft.imageFiles || []).map((file) => URL.createObjectURL(file));
+    const urlPreviews = [bookDraft.imageUrl, bookDraft.imageUrl2, bookDraft.imageUrl3].filter(Boolean).map(resolveMediaUrl);
+    setProductImagePreviews([...fileUrls, ...urlPreviews].slice(0, 3));
+    return () => fileUrls.forEach((url) => URL.revokeObjectURL(url));
+  }, [bookDraft.imageFiles, bookDraft.imageUrl, bookDraft.imageUrl2, bookDraft.imageUrl3]);
+
+  useEffect(() => {
+    if (!portfolioDraft.imageFile) {
+      setPortfolioImagePreview(portfolioDraft.imageUrl ? resolveMediaUrl(portfolioDraft.imageUrl) : getPortfolioImageSrc(portfolioDraft));
+      return undefined;
+    }
+    const previewUrl = URL.createObjectURL(portfolioDraft.imageFile);
+    setPortfolioImagePreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [portfolioDraft.imageFile, portfolioDraft.imageUrl, portfolioDraft.image]);
+
+  useEffect(() => {
+    if (!reviewDraft.imageFile) {
+      setReviewImagePreview(reviewDraft.image || "");
+      return undefined;
+    }
+    const previewUrl = URL.createObjectURL(reviewDraft.imageFile);
+    setReviewImagePreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [reviewDraft.imageFile, reviewDraft.image]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadAdminData() {
+      setAdminDataLoading(true);
+      try {
+        const [products, courses, portfolioItems, reviews, requests, mediaAssets, shopCategoryItems, brandItems, settings] = await Promise.all([
+          listAdminProducts(),
+          listAdminCourses(),
+          listAdminPortfolio(),
+          listAdminReviews(),
+          listAdminRequests().catch(() => adminProjectRequests),
+          listAdminMedia().catch(() => adminMediaDefaults),
+          listAdminShopCategories().catch(() => []),
+          listAdminBrands().catch(() => []),
+          listAdminSettings().catch(() => []),
+        ]);
+
+        let loadedPortfolioItems = portfolioItems;
+        let loadedReviews = reviews;
+        if (portfolioItems.length === 0) {
+          loadedPortfolioItems = await Promise.all(projects.slice(0, 12).map((project) => saveAdminPortfolio({
+            title: project.title,
+            category: project.category,
+            image: project.image,
+            client: "Danajet client",
+            status: "Visible",
+            embedUrl: "",
+            description: `${project.title} portfolio project.`,
+          }, null)));
+        }
+        if (reviews.length === 0) {
+          loadedReviews = await Promise.all(testimonials.slice(0, 8).map((review) => saveAdminReview({
+            name: review.name,
+            role: review.role,
+            quote: review.quote,
+            rating: 5,
+            service: review.service || "amazon",
+            project: review.project || "",
+            ctaLabel: review.ctaLabel || "",
+            ctaUrl: review.ctaUrl || "",
+            image: review.image || "",
+          }, null)));
+        }
+
+        if (!isMounted) return;
+        setAdminProducts(products);
+        setAdminCourses(courses);
+        setAdminPortfolioItems(loadedPortfolioItems);
+        setAdminReviews(loadedReviews);
+        setAdminRequests(requests);
+        setAdminMediaLibrary(mediaAssets);
+        if (shopCategoryItems.length) setAdminShopCategoryItems(shopCategoryItems);
+        if (brandItems.length) setAdminBrandSections(brandItems);
+        if (settings.length) {
+          setAdminAbout((current) => ({ ...current, ...getSettingsGroup(settings, "about-page") }));
+          setAdminRequestFormOptions((current) => ({ ...current, ...getSettingsGroup(settings, "request-form") }));
+          setAdminContact((current) => ({ ...current, ...getSettingsGroup(settings, "contact-footer") }));
+          setAdminSettings((current) => ({ ...current, ...getSettingsGroup(settings, "site") }));
+          setAdminServiceCards((current) => getJsonSetting(settings, "collection-services", current));
+          setAdminCourseCategoryItems((current) => getJsonSetting(settings, "collection-course-categories", current));
+          setAdminCtas((current) => getJsonSetting(settings, "collection-ctas", current));
+          setAdminHighlights((current) => getJsonSetting(settings, "collection-featured-highlights", current));
+        }
+        setAdminNotice("Dashboard connected to Django API.");
+      } catch (error) {
+        if (isMounted) setAdminNotice(`${error.message || "Could not load Django data."} Log in as staff to manage protected content.`);
+      } finally {
+        if (isMounted) setAdminDataLoading(false);
+      }
+    }
+
+    loadAdminData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const resetBookDraft = () => {
     setBookDraft({
       title: "",
+      subtitle: "",
       author: "",
-      category_label: "",
+      category: "all",
+      category_label: "Shop all",
       price: "",
+      compareAtPrice: "",
       inventory: "",
+      sku: "",
       amazonUrl: "",
+      externalUrl: "",
+      imageUrl: "",
+      imageUrl2: "",
+      imageUrl3: "",
+      imageFiles: [],
+      galleryImages: [],
+      cover: "orange",
+      accent: "#e3450b",
+      ageRange: "",
+      format: "",
+      featured: false,
+      published: true,
+      digital: false,
+      featuresText: "",
       description: "",
     });
   };
@@ -3370,10 +4340,19 @@ function AdminDashboardPage() {
   const resetCourseDraft = () => {
     setCourseDraft({
       title: "",
+      subtitle: "",
       category: "Book Design & Publishing",
       price: "$0",
       status: "Draft",
       embedUrl: "",
+      introVideoUrl: "",
+      thumbnailUrl: "",
+      thumbnailFile: null,
+      introVideoFile: null,
+      duration: "",
+      level: "",
+      outcomesText: "",
+      resourcesText: "",
       description: "",
     });
   };
@@ -3383,6 +4362,8 @@ function AdminDashboardPage() {
       title: "",
       category: "children",
       image: "03",
+      imageUrl: "",
+      imageFile: null,
       client: "",
       status: "Draft",
       embedUrl: "",
@@ -3401,11 +4382,45 @@ function AdminDashboardPage() {
       ctaLabel: "View on Amazon",
       ctaUrl: "",
       image: "",
+      imageFile: null,
     });
   };
 
   const handleOpenBookModal = () => {
     resetBookDraft();
+    setEditingProductId(null);
+    setActiveAdminModal("book");
+  };
+
+  const handleOpenEditProductModal = (product) => {
+    setBookDraft({
+      title: product.title || "",
+      subtitle: product.subtitle || "",
+      author: product.author || "",
+      category: product.category || "",
+      category_label: product.category_label || "Shop all",
+      price: String(product.price || "").replace(/^\$/, ""),
+      compareAtPrice: product.compareAtPrice || "",
+      inventory: product.inventory ?? "",
+      sku: product.sku || "",
+      amazonUrl: product.amazonUrl || "",
+      externalUrl: product.externalUrl || "",
+      imageUrl: product.imageUrl || "",
+      imageUrl2: product.galleryImages?.[1] || "",
+      imageUrl3: product.galleryImages?.[2] || "",
+      imageFiles: [],
+      galleryImages: product.galleryImages || [],
+      cover: product.cover || "orange",
+      accent: product.accent || "#e3450b",
+      ageRange: product.ageRange || "",
+      format: product.format || "",
+      featured: Boolean(product.featured || product.is_featured),
+      published: product.published !== false,
+      digital: Boolean(product.digital),
+      featuresText: product.featuresText || "",
+      description: product.description || "",
+    });
+    setEditingProductId(product.id);
     setActiveAdminModal("book");
   };
 
@@ -3418,10 +4433,19 @@ function AdminDashboardPage() {
   const handleOpenEditCourseModal = (course) => {
     setCourseDraft({
       title: course.title || "",
+      subtitle: course.subtitle || course.courseSubtitle || "",
       category: course.category || "Book Design & Publishing",
       price: course.price || "$0",
       status: course.status || "Draft",
       embedUrl: course.embedUrl || "",
+      introVideoUrl: course.introVideoUrl || course.videoSrc || "",
+      thumbnailUrl: course.thumbnailUrl || "",
+      thumbnailFile: null,
+      introVideoFile: null,
+      duration: course.duration || "",
+      level: course.level || "",
+      outcomesText: course.outcomesText || "",
+      resourcesText: course.resourcesText || "",
       description: course.description || "",
     });
     setEditingCourseId(course.id);
@@ -3439,6 +4463,8 @@ function AdminDashboardPage() {
       title: project.title || "",
       category: project.category || "children",
       image: project.image || "03",
+      imageUrl: project.imageUrl || "",
+      imageFile: null,
       client: project.client || "",
       status: project.status || "Draft",
       embedUrl: project.embedUrl || "",
@@ -3465,6 +4491,7 @@ function AdminDashboardPage() {
       ctaLabel: review.ctaLabel || "View on Amazon",
       ctaUrl: review.ctaUrl || "",
       image: review.image || "",
+      imageFile: null,
     });
     setEditingReviewId(review.id);
     setActiveAdminModal("review");
@@ -3472,185 +4499,215 @@ function AdminDashboardPage() {
 
   const handleOpenHighlightModal = () => {
     setHighlightDraft("");
+    setHighlightImageUrl("");
+    setHighlightImagePreview("");
     setEditingHighlightIndex(null);
     setActiveAdminModal("highlight");
   };
 
   const handleOpenEditHighlightModal = (index) => {
-    setHighlightDraft(adminHighlights[index] || "");
+    const highlight = normalizeFeaturedHighlight(adminHighlights[index], index);
+    setHighlightDraft(highlight.title || "");
+    setHighlightImageUrl(highlight.imageUrl || "");
+    setHighlightImagePreview(highlight.imageUrl ? resolveMediaUrl(highlight.imageUrl) : "");
     setEditingHighlightIndex(index);
     setActiveAdminModal("highlight");
   };
 
-  const handleAddProduct = (event) => {
+  const handleSaveProduct = async (event) => {
     event.preventDefault();
-    const nextId = adminProducts.reduce((highest, product) => Math.max(highest, Number(product.id) || 0), 0) + 1;
-    const title = bookDraft.title.trim() || `New Book ${nextId}`;
-    setAdminProducts((current) => [
-      {
-        id: nextId,
-        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `new-book-${nextId}`,
-        title,
-        subtitle: bookDraft.description.trim() || "Draft product waiting for details",
-        category: "guides",
-        category_label: bookDraft.category_label.trim() || "Draft book",
-        author: bookDraft.author.trim() || "Danajet BookLab",
-        price: bookDraft.price.trim().replace("$", "") || "0.00",
-        currency: "USD",
-        rating: 0,
-        review_count: 0,
-        inventory: Number(bookDraft.inventory) || 0,
-        is_featured: false,
-        cover: "orange",
-        accent: "#000000",
-        amazonUrl: bookDraft.amazonUrl,
-      },
-      ...current,
-    ]);
-    setActiveAdminModal(null);
-    showAdminNotice(`${title} added locally.`);
+    const existingProduct = adminProducts.find((product) => product.id === editingProductId);
+    try {
+      const product = await saveAdminProduct(bookDraft, existingProduct);
+      if (existingProduct) {
+        setAdminProducts((current) => current.map((item) => (item.id === editingProductId ? product : item)));
+        showAdminNotice(`${product.title} updated in Django products.`);
+      } else {
+        setAdminProducts((current) => [product, ...current]);
+        showAdminNotice(`${product.title} saved to Django products.`);
+      }
+      setActiveAdminModal(null);
+      setEditingProductId(null);
+    } catch (error) {
+      showAdminNotice(`${error.message || "Book could not be saved."} Make sure you are logged in as staff.`, "error");
+    }
   };
 
-  const handleDeleteProduct = (id) => {
-    setAdminProducts((current) => current.filter((product) => product.id !== id));
-    showAdminNotice("Book removed from the local admin list.");
+  const handleDeleteProduct = async (id) => {
+    const product = adminProducts.find((item) => item.id === id);
+    if (!product) return;
+    try {
+      await deleteAdminProduct(product);
+      setAdminProducts((current) => current.filter((item) => item.id !== id));
+      showAdminNotice("Book deleted from Django products.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Book could not be deleted."} Make sure you are logged in as staff.`);
+    }
   };
 
-  const handleToggleFeaturedProduct = (id) => {
-    setAdminProducts((current) => current.map((product) => (
-      product.id === id ? { ...product, is_featured: !product.is_featured } : product
-    )));
-    showAdminNotice("Book featured status changed locally.");
+  const handleToggleFeaturedProduct = async (id) => {
+    const product = adminProducts.find((item) => item.id === id);
+    if (!product) return;
+    try {
+      const updated = await updateAdminProduct(product, { is_published: product.published === false });
+      setAdminProducts((current) => current.map((item) => (item.id === id ? updated : item)));
+      showAdminNotice(updated.published === false ? "Product hidden from the main website." : "Product is visible on the main website.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Visibility could not be saved."} Make sure you are logged in as staff.`, "error");
+    }
   };
 
-  const handleAddCourse = (event) => {
+  const handleCourseMediaSelected = async (file, kind) => {
+    if (!file) return;
+    const isThumbnail = kind === "thumbnail";
+    const label = isThumbnail ? "Course thumbnail" : "Course intro video";
+    setCourseMediaUpload({ kind, progress: 12, uploading: true });
+    try {
+      setCourseMediaUpload({ kind, progress: 35, uploading: true });
+      const uploaded = await uploadAdminMediaFile(file, label);
+      setCourseMediaUpload({ kind, progress: 82, uploading: true });
+      setCourseDraft((draft) => ({
+        ...draft,
+        thumbnailUrl: isThumbnail ? uploaded.path : draft.thumbnailUrl,
+        introVideoUrl: isThumbnail ? draft.introVideoUrl : uploaded.path,
+        thumbnailFile: null,
+        introVideoFile: null,
+      }));
+      setCourseMediaUpload({ kind, progress: 100, uploading: true });
+      showAdminNotice(`${label} uploaded. Click Save Changes to publish it.`);
+    } catch (error) {
+      showAdminNotice(`${error.message || `${label} could not be uploaded.`} Make sure you are logged in as staff.`, "error");
+    } finally {
+      window.setTimeout(() => {
+        setCourseMediaUpload({ kind: "", progress: 0, uploading: false });
+      }, 650);
+    }
+  };
+
+  const handleAddCourse = async (event) => {
     event.preventDefault();
+    if (courseMediaUpload.uploading) return;
     const title = courseDraft.title.trim() || "New Course Draft";
-    if (editingCourseId) {
-      setAdminCourses((current) => current.map((course) => (
-        course.id === editingCourseId
-          ? {
-              ...course,
-              title,
-              category: courseDraft.category,
-              price: courseDraft.price.trim() || "$0",
-              status: courseDraft.status,
-              embedUrl: courseDraft.embedUrl,
-              description: courseDraft.description,
-            }
-          : course
-      )));
+    const existingCourse = adminCourses.find((course) => course.id === editingCourseId);
+    try {
+      const savedCourse = await saveAdminCourse(courseDraft, existingCourse);
+      if (existingCourse) {
+        setAdminCourses((current) => current.map((course) => (course.id === editingCourseId ? savedCourse : course)));
+        showAdminNotice(`${title} updated in Django courses.`);
+      } else {
+        setAdminCourses((current) => [savedCourse, ...current]);
+        showAdminNotice(`${title} saved to Django courses.`);
+      }
       setActiveAdminModal(null);
       setEditingCourseId(null);
-      showAdminNotice(`${title} updated locally.`);
-      return;
+    } catch (error) {
+      showAdminNotice(`${error.message || "Course could not be saved."} Make sure you are logged in as staff.`);
     }
-
-    const id = `course-draft-${Date.now()}`;
-    setAdminCourses((current) => [{
-      id,
-      title,
-      category: courseDraft.category,
-      price: courseDraft.price.trim() || "$0",
-      status: courseDraft.status,
-      embedUrl: courseDraft.embedUrl,
-      description: courseDraft.description,
-    }, ...current]);
-    setActiveAdminModal(null);
-    showAdminNotice(`${title} added locally.`);
   };
 
-  const handleDeleteCourse = (id) => {
-    setAdminCourses((current) => current.filter((course) => course.id !== id));
-    showAdminNotice("Course removed locally.");
+  const handleDeleteCourse = async (id) => {
+    const course = adminCourses.find((item) => item.id === id);
+    if (!course) return;
+    try {
+      await deleteAdminCourse(course);
+      setAdminCourses((current) => current.filter((item) => item.id !== id));
+      showAdminNotice("Course deleted from Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Course could not be deleted."} Make sure you are logged in as staff.`);
+    }
   };
 
-  const handleToggleCourseStatus = (id) => {
+  const handleToggleCourseStatus = async (id) => {
     const statuses = ["Draft", "Coming soon", "Published"];
-    setAdminCourses((current) => current.map((course) => {
-      if (course.id !== id) return course;
-      const nextStatus = statuses[(statuses.indexOf(course.status) + 1) % statuses.length];
-      return { ...course, status: nextStatus };
-    }));
-    showAdminNotice("Course status changed locally.");
+    const course = adminCourses.find((item) => item.id === id);
+    if (!course) return;
+    const nextStatus = statuses[(statuses.indexOf(course.status) + 1) % statuses.length];
+    try {
+      const updated = await saveAdminCourse({ ...course, status: nextStatus, embedUrl: course.embedUrl || "", description: course.description || "" }, course);
+      setAdminCourses((current) => current.map((item) => (item.id === id ? updated : item)));
+      showAdminNotice("Course status saved to Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Course status could not be saved."} Make sure you are logged in as staff.`);
+    }
   };
 
-  const handleSavePortfolioItem = (event) => {
+  const handleSavePortfolioItem = async (event) => {
     event.preventDefault();
     const title = portfolioDraft.title.trim() || "New Portfolio Draft";
-    const savedItem = {
-      title,
-      category: portfolioDraft.category,
-      image: portfolioDraft.image.trim().replace(/^page-/i, "").replace(/\.jpg$/i, "") || "03",
-      client: portfolioDraft.client.trim(),
-      status: portfolioDraft.status,
-      embedUrl: portfolioDraft.embedUrl.trim(),
-      description: portfolioDraft.description.trim(),
-    };
-
-    if (editingPortfolioId) {
-      setAdminPortfolioItems((current) => current.map((project) => (
-        project.id === editingPortfolioId ? { ...project, ...savedItem } : project
-      )));
+    const existingProject = adminPortfolioItems.find((project) => project.id === editingPortfolioId);
+    try {
+      const savedItem = await saveAdminPortfolio(portfolioDraft, existingProject);
+      if (existingProject) {
+        setAdminPortfolioItems((current) => current.map((project) => (project.id === editingPortfolioId ? savedItem : project)));
+        showAdminNotice(`${title} updated in Django portfolio.`);
+      } else {
+        setAdminPortfolioItems((current) => [savedItem, ...current]);
+        showAdminNotice(`${title} saved to Django portfolio.`);
+      }
       setActiveAdminModal(null);
       setEditingPortfolioId(null);
-      showAdminNotice(`${title} updated locally.`);
-      return;
+    } catch (error) {
+      showAdminNotice(`${error.message || "Portfolio item could not be saved."} Make sure you are logged in as staff.`);
     }
-
-    setAdminPortfolioItems((current) => [{ id: `portfolio-draft-${Date.now()}`, ...savedItem }, ...current]);
-    setActiveAdminModal(null);
-    showAdminNotice(`${title} added locally.`);
   };
 
-  const handleDeletePortfolioItem = (id) => {
-    setAdminPortfolioItems((current) => current.filter((project) => project.id !== id));
-    showAdminNotice("Portfolio item removed locally.");
+  const handleDeletePortfolioItem = async (id) => {
+    const project = adminPortfolioItems.find((item) => item.id === id);
+    if (!project) return;
+    try {
+      await deleteAdminPortfolio(project);
+      setAdminPortfolioItems((current) => current.filter((item) => item.id !== id));
+      showAdminNotice("Portfolio item deleted from Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Portfolio item could not be deleted."} Make sure you are logged in as staff.`);
+    }
   };
 
-  const handleSaveReview = (event) => {
+  const handleSaveReview = async (event) => {
     event.preventDefault();
     const name = reviewDraft.name.trim() || "New Reviewer";
-    const savedReview = {
-      name,
-      role: reviewDraft.role.trim() || "Client Role",
-      quote: reviewDraft.quote.trim() || "Draft testimonial text waiting for client approval.",
-      rating: Math.min(5, Math.max(1, Number(reviewDraft.rating) || 5)),
-      service: reviewDraft.service,
-      project: reviewDraft.project.trim(),
-      ctaLabel: reviewDraft.ctaLabel.trim() || "View Project",
-      ctaUrl: reviewDraft.ctaUrl.trim(),
-      image: reviewDraft.image.trim(),
-    };
-
-    if (editingReviewId) {
-      setAdminReviews((current) => current.map((review) => (
-        review.id === editingReviewId ? { ...review, ...savedReview } : review
-      )));
+    const selectedReview = adminReviews.find((review) => review.id === editingReviewId);
+    const existingReview = selectedReview?.apiId || selectedReview?.slug ? selectedReview : null;
+    try {
+      const savedReview = await saveAdminReview(reviewDraft, existingReview);
+      if (selectedReview) {
+        setAdminReviews((current) => current.map((review) => (review.id === editingReviewId ? savedReview : review)));
+        showAdminNotice(`${name}'s review updated in Django.`);
+      } else {
+        setAdminReviews((current) => [savedReview, ...current]);
+        showAdminNotice(`${name}'s review saved to Django.`);
+      }
       setActiveAdminModal(null);
       setEditingReviewId(null);
-      showAdminNotice(`${name}'s review updated locally.`);
-      return;
+    } catch (error) {
+      showAdminNotice(`${error.message || "Review could not be saved."} Make sure you are logged in as staff.`);
     }
-
-    setAdminReviews((current) => [{ id: `review-draft-${Date.now()}`, ...savedReview }, ...current]);
-    setActiveAdminModal(null);
-    showAdminNotice(`${name}'s review added locally.`);
   };
 
-  const handleDeleteReview = (id) => {
-    setAdminReviews((current) => current.filter((review) => review.id !== id));
-    showAdminNotice("Review removed locally.");
+  const handleDeleteReview = async (id) => {
+    const review = adminReviews.find((item) => item.id === id);
+    if (!review) return;
+    try {
+      await deleteAdminReview(review);
+      setAdminReviews((current) => current.filter((item) => item.id !== id));
+      showAdminNotice("Review deleted from Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Review could not be deleted."} Make sure you are logged in as staff.`);
+    }
   };
 
-  const handleCycleRequestStatus = (name) => {
+  const handleCycleRequestStatus = async (requestId) => {
     const statuses = ["New", "Reviewing", "Quoted", "Contacted", "Closed"];
-    setAdminRequests((current) => current.map((request) => {
-      if (request.name !== name) return request;
-      const nextStatus = statuses[(statuses.indexOf(request.status) + 1) % statuses.length];
-      return { ...request, status: nextStatus };
-    }));
-    showAdminNotice("Request status changed locally.");
+    const request = adminRequests.find((item) => item.id === requestId);
+    if (!request) return;
+    const nextStatus = statuses[(statuses.indexOf(request.status) + 1) % statuses.length];
+    try {
+      const updated = await updateAdminRequestStatus(request, nextStatus);
+      setAdminRequests((current) => current.map((item) => (item.id === requestId ? updated : item)));
+      showAdminNotice("Request status saved to Django.");
+    } catch (error) {
+      showAdminNotice(`${error.message || "Request status could not be saved."} Make sure you are logged in as staff.`);
+    }
   };
 
   const handleDownloadRequest = (request) => {
@@ -3669,90 +4726,91 @@ function AdminDashboardPage() {
     showAdminNotice("All project requests report downloaded.");
   };
 
-  const handleSaveHighlight = (event) => {
+  const persistFeaturedHighlights = async (nextHighlights) => {
+    const normalizedHighlights = nextHighlights.map((item, index) => normalizeFeaturedHighlight(item, index));
+    setAdminHighlights(normalizedHighlights);
+    await saveCollectionDraft("featured-highlights", normalizedHighlights, "Featured work highlights");
+  };
+
+  const handleSaveHighlight = async (event) => {
     event.preventDefault();
-    const value = highlightDraft.trim() || "New Featured Work";
+    const value = {
+      id: editingHighlightIndex !== null ? normalizeFeaturedHighlight(adminHighlights[editingHighlightIndex], editingHighlightIndex).id : makeAdminId("featured-highlight"),
+      title: highlightDraft.trim() || "New Featured Work",
+      imageUrl: highlightImageUrl || highlightImagePreview || "",
+    };
 
     if (editingHighlightIndex !== null) {
-      setAdminHighlights((current) => current.map((item, itemIndex) => (itemIndex === editingHighlightIndex ? value : item)));
+      const nextHighlights = adminHighlights.map((item, itemIndex) => (itemIndex === editingHighlightIndex ? value : item));
       setActiveAdminModal(null);
       setEditingHighlightIndex(null);
-      showAdminNotice("Featured work item updated locally.");
+      await persistFeaturedHighlights(nextHighlights);
+      showAdminNotice("Featured work image and title saved.");
       return;
     }
 
-    setAdminHighlights((current) => [...current, value]);
+    const nextHighlights = [...adminHighlights, value];
     setActiveAdminModal(null);
-    showAdminNotice("Featured work item added locally.");
+    await persistFeaturedHighlights(nextHighlights);
+    showAdminNotice("Featured work item saved.");
   };
 
-  const handleDeleteHighlight = (index) => {
-    setAdminHighlights((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    showAdminNotice("Featured work item removed locally.");
+  const handleHighlightImageSelected = async (file) => {
+    if (!file) return;
+    setHighlightImageUploading(true);
+    const previewUrl = URL.createObjectURL(file);
+    setHighlightImagePreview(previewUrl);
+    try {
+      const uploaded = await uploadAdminMediaFile(file, "Featured work supporting image");
+      setAdminMediaLibrary((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
+      setHighlightImageUrl(uploaded.path);
+      setHighlightImagePreview(uploaded.path);
+      if (editingHighlightIndex !== null) {
+        const currentHighlight = normalizeFeaturedHighlight(adminHighlights[editingHighlightIndex], editingHighlightIndex);
+        const nextHighlight = {
+          ...currentHighlight,
+          title: highlightDraft.trim() || currentHighlight.title || "New Featured Work",
+          imageUrl: uploaded.path,
+        };
+        const nextHighlights = adminHighlights.map((item, itemIndex) => (itemIndex === editingHighlightIndex ? nextHighlight : item));
+        await persistFeaturedHighlights(nextHighlights);
+        showAdminNotice("Featured work image uploaded and saved.");
+      } else {
+        showAdminNotice("Supporting image attached to this featured work draft. Click Save Changes to publish it.");
+      }
+    } catch (error) {
+      setHighlightImagePreview("");
+      showAdminNotice(`${error.message || "Supporting image could not be uploaded."} Make sure you are logged in as staff.`, "error");
+    } finally {
+      URL.revokeObjectURL(previewUrl);
+      setHighlightImageUploading(false);
+    }
+  };
+
+  const handleDeleteHighlight = async (index) => {
+    const nextHighlights = adminHighlights.filter((_, itemIndex) => itemIndex !== index);
+    await persistFeaturedHighlights(nextHighlights);
   };
 
   const handleUpdateSetting = (key, value) => {
     setAdminSettings((current) => ({ ...current, [key]: value }));
   };
+  const handleAdminLogout = async () => {
+    await logoutUser().catch(() => {});
+    onLogout?.();
+    notifyAuthUpdated();
+  };
 
   const renderAdminPanel = () => {
-    if (activeAdminSection === "hero") return (
-      <AdminTextControlPanel
-        eyebrow="Homepage controls"
-        title="Hero, announcement, and first CTAs"
-        copy="Control the first thing visitors see: announcement, headline, supporting text, CTA buttons, and hero image path."
-        values={adminHero}
-        onUpdate={(key, value) => setAdminHero((current) => ({ ...current, [key]: value }))}
-        onSave={() => showAdminNotice("Homepage hero draft saved locally.")}
-        fields={[
-          { key: "announcement", label: "Announcement", wide: true },
-          { key: "headline", label: "Headline", wide: true },
-          { key: "subtitle", label: "Subtitle", type: "textarea", wide: true },
-          { key: "primaryCta", label: "Primary CTA" },
-          { key: "primaryUrl", label: "Primary URL" },
-          { key: "secondaryCta", label: "Secondary CTA" },
-          { key: "secondaryUrl", label: "Secondary URL" },
-          { key: "heroImage", label: "Hero Image Path", wide: true },
-        ]}
-      />
-    );
-    if (activeAdminSection === "navigation") return (
-      <AdminCollectionPanel
-        eyebrow="Menu controls"
-        title="Navigation and dropdown links"
-        copy="Rename, hide, reorder later, and prepare dropdown links for backend control."
-        items={adminNavLinks}
-        query={normalizedAdminSearch}
-        addLabel="Add Menu Item"
-        onAdd={() => addAdminCollectionItem(setAdminNavLinks, "nav", { label: "New Link", href: "/", dropdown: "", status: "Visible" }, "Menu item")}
-        onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminNavLinks, id, key, value)}
-        onDelete={(id) => deleteAdminCollectionItem(setAdminNavLinks, id, "Menu item")}
-        fields={[
-          { key: "label", label: "Menu Label" },
-          { key: "href", label: "Link URL" },
-          { key: "dropdown", label: "Dropdown Items", wide: true },
-          { key: "status", label: "Status", type: "select", options: ["Visible", "Hidden"] },
-        ]}
-      />
-    );
     if (activeAdminSection === "about-control") return (
-      <AdminTextControlPanel
-        eyebrow="About page"
-        title="Founder story and page content"
-        copy="Edit the About page heading, founder bio, story copy, stats, and brand intro video path as a local draft until backend uploads are wired."
+      <AdminAboutPanel
         values={adminAbout}
         onUpdate={(key, value) => setAdminAbout((current) => ({ ...current, [key]: value }))}
-        onSave={() => showAdminNotice("About page draft saved locally.")}
-        fields={[
-          { key: "eyebrow", label: "Eyebrow" },
-          { key: "video", label: "Brand Intro Video Path / URL", wide: true },
-          { key: "headline", label: "Headline", wide: true },
-          { key: "founderBio", label: "Founder Bio", type: "textarea", wide: true },
-          { key: "story", label: "Brand Story", type: "textarea", wide: true },
-          { key: "statOne", label: "Stat One" },
-          { key: "statTwo", label: "Stat Two" },
-          { key: "statThree", label: "Stat Three" },
-        ]}
+        onVideoFileChange={handleAboutVideoSelected}
+        onRemoveVideo={removeAboutVideo}
+        uploadProgress={aboutVideoUploadProgress}
+        isUploading={isAboutVideoUploading}
+        onSave={saveAboutPage}
       />
     );
     if (activeAdminSection === "services-control") return (
@@ -3766,6 +4824,7 @@ function AdminDashboardPage() {
         onAdd={() => addAdminCollectionItem(setAdminServiceCards, "service", { title: "New Service", copy: "Service description", price: "Custom quote", status: "Available" }, "Service")}
         onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminServiceCards, id, key, value)}
         onDelete={(id) => deleteAdminCollectionItem(setAdminServiceCards, id, "Service")}
+        onSave={() => saveCollectionDraft("services", adminServiceCards, "Services")}
         fields={[
           { key: "title", label: "Service Title" },
           { key: "price", label: "Price / Range" },
@@ -3774,7 +4833,7 @@ function AdminDashboardPage() {
         ]}
       />
     );
-    if (activeAdminSection === "books") return <AdminBooksPanel products={adminProducts} onAddProduct={handleOpenBookModal} onDeleteProduct={handleDeleteProduct} onToggleFeatured={handleToggleFeaturedProduct} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "books") return <AdminBooksPanel products={adminProducts} onAddProduct={handleOpenBookModal} onEditProduct={handleOpenEditProductModal} onDeleteProduct={handleDeleteProduct} onToggleFeatured={handleToggleFeaturedProduct} query={normalizedAdminSearch} />;
     if (activeAdminSection === "shop-categories") return (
       <AdminCollectionPanel
         eyebrow="Shop controls"
@@ -3783,9 +4842,10 @@ function AdminDashboardPage() {
         items={adminShopCategoryItems}
         query={normalizedAdminSearch}
         addLabel="Add Category"
-        onAdd={() => addAdminCollectionItem(setAdminShopCategoryItems, "shop-category", { label: "New Category", slug: "new-category", description: "Category description", status: "Visible" }, "Shop category")}
+        onAdd={() => addAdminCollectionItem(setAdminShopCategoryItems, "shop-category", { label: "New Category", slug: `new-category-${Date.now()}`, description: "Category description", status: "Visible" }, "Shop category")}
         onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminShopCategoryItems, id, key, value)}
-        onDelete={(id) => deleteAdminCollectionItem(setAdminShopCategoryItems, id, "Shop category")}
+        onDelete={handleDeleteShopCategory}
+        onSave={saveShopCategories}
         fields={[
           { key: "label", label: "Category Label" },
           { key: "slug", label: "Slug" },
@@ -3806,6 +4866,7 @@ function AdminDashboardPage() {
         onAdd={() => addAdminCollectionItem(setAdminCourseCategoryItems, "course-category", { title: "New Course Category", description: "Category description", status: "Visible" }, "Course category")}
         onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminCourseCategoryItems, id, key, value)}
         onDelete={(id) => deleteAdminCollectionItem(setAdminCourseCategoryItems, id, "Course category")}
+        onSave={() => saveCollectionDraft("course-categories", adminCourseCategoryItems, "Course categories")}
         fields={[
           { key: "title", label: "Category Title" },
           { key: "status", label: "Status", type: "select", options: ["Visible", "Hidden"] },
@@ -3824,7 +4885,8 @@ function AdminDashboardPage() {
         addLabel="Add Brand"
         onAdd={() => addAdminCollectionItem(setAdminBrandSections, "brand", { name: "New Brand", copy: "Brand description", code: "NB", link: "/request-project", status: "Visible" }, "Brand")}
         onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminBrandSections, id, key, value)}
-        onDelete={(id) => deleteAdminCollectionItem(setAdminBrandSections, id, "Brand")}
+        onDelete={deleteBrandItem}
+        onSave={saveBrandCollection}
         fields={[
           { key: "name", label: "Brand Name" },
           { key: "code", label: "Short Code" },
@@ -3835,8 +4897,8 @@ function AdminDashboardPage() {
       />
     );
     if (activeAdminSection === "reviews") return <AdminReviewsPanel reviews={adminReviews} onAddReview={handleOpenReviewModal} onEditReview={handleOpenEditReviewModal} onDeleteReview={handleDeleteReview} query={normalizedAdminSearch} />;
-    if (activeAdminSection === "requests") return <AdminRequestsPanel requests={adminRequests} onCycleRequestStatus={handleCycleRequestStatus} onDownloadRequest={handleDownloadRequest} onDownloadAllRequests={handleDownloadAllRequests} query={normalizedAdminSearch} />;
-    if (activeAdminSection === "form-options") return <AdminRequestFormOptionsPanel options={adminRequestFormOptions} onUpdate={(key, value) => setAdminRequestFormOptions((current) => ({ ...current, [key]: value }))} onSave={() => showAdminNotice("Request form options saved locally.")} />;
+    if (activeAdminSection === "requests") return <AdminRequestsPanel requests={adminRequests} onViewRequest={(request) => { setSelectedRequest(request); setActiveAdminModal("request"); }} onCycleRequestStatus={handleCycleRequestStatus} onDownloadRequest={handleDownloadRequest} onDownloadAllRequests={handleDownloadAllRequests} query={normalizedAdminSearch} />;
+    if (activeAdminSection === "form-options") return <AdminRequestFormOptionsPanel options={adminRequestFormOptions} onUpdate={(key, value) => setAdminRequestFormOptions((current) => ({ ...current, [key]: value }))} onSave={() => saveSettingsDraft("request-form", adminRequestFormOptions, "Request form options")} />;
     if (activeAdminSection === "featured") return <AdminFeaturedPanel highlights={adminHighlights} onAddHighlight={handleOpenHighlightModal} onEditHighlight={handleOpenEditHighlightModal} onDeleteHighlight={handleDeleteHighlight} query={normalizedAdminSearch} />;
     if (activeAdminSection === "cta-control") return (
       <AdminCollectionPanel
@@ -3849,6 +4911,7 @@ function AdminDashboardPage() {
         onAdd={() => addAdminCollectionItem(setAdminCtas, "cta", { title: "New CTA", copy: "CTA supporting copy", button: "Click Here", url: "/request-project", location: "New section" }, "CTA")}
         onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminCtas, id, key, value)}
         onDelete={(id) => deleteAdminCollectionItem(setAdminCtas, id, "CTA")}
+        onSave={() => saveCollectionDraft("ctas", adminCtas, "CTAs")}
         fields={[
           { key: "title", label: "Title" },
           { key: "button", label: "Button Label" },
@@ -3865,7 +4928,7 @@ function AdminDashboardPage() {
         copy="Edit contact channels, social links, business hours, location, and footer brand copy."
         values={adminContact}
         onUpdate={(key, value) => setAdminContact((current) => ({ ...current, [key]: value }))}
-        onSave={() => showAdminNotice("Contact and footer draft saved locally.")}
+        onSave={() => saveSettingsDraft("contact-footer", adminContact, "Contact and footer")}
         fields={[
           { key: "email", label: "Email" },
           { key: "whatsapp", label: "WhatsApp" },
@@ -3889,7 +4952,8 @@ function AdminDashboardPage() {
         addLabel="Add Media"
         onAdd={() => addAdminCollectionItem(setAdminMediaLibrary, "media", { title: "New Upload", type: "Image", path: "/assets/new-image.jpg", usage: "Unassigned" }, "Media item")}
         onUpdate={(id, key, value) => updateAdminCollectionItem(setAdminMediaLibrary, id, key, value)}
-        onDelete={(id) => deleteAdminCollectionItem(setAdminMediaLibrary, id, "Media item")}
+        onDelete={deleteMediaItem}
+        onSave={saveMediaLibrary}
         fields={[
           { key: "title", label: "Asset Title" },
           { key: "type", label: "Type", type: "select", options: ["Image", "Video", "PDF", "Folder", "Document"] },
@@ -3898,7 +4962,7 @@ function AdminDashboardPage() {
         ]}
       />
     );
-    if (activeAdminSection === "settings") return <AdminSettingsPanel settings={adminSettings} onUpdateSetting={handleUpdateSetting} onSaveSettings={() => showAdminNotice("Settings draft saved locally.")} />;
+    if (activeAdminSection === "settings") return <AdminSettingsPanel settings={adminSettings} onUpdateSetting={handleUpdateSetting} onSaveSettings={() => saveSettingsDraft("site", adminSettings, "Site settings")} />;
 
     return (
       <>
@@ -3906,10 +4970,10 @@ function AdminDashboardPage() {
           <AdminMetricCard icon={ShoppingBag} value={adminProducts.length} label="Shop products" copy="Books ready for catalog control" />
           <AdminMetricCard icon={MonitorPlay} value={adminCourses.length} label="Courses & tutorials" copy="Waitlist and embed-ready items" />
           <AdminMetricCard icon={ImageIcon} value={adminPortfolioItems.length} label="Portfolio items" copy="Grouped by service category" />
-          <AdminMetricCard icon={Inbox} value={adminRequests.length} label="Project requests" copy="New submissions mock inbox" />
+          <AdminMetricCard icon={Inbox} value={adminRequests.length} label="Project requests" copy="New submissions inbox" />
         </div>
         <div className="admin-dashboard-grid">
-          <AdminRequestsPanel requests={adminRequests} onCycleRequestStatus={handleCycleRequestStatus} onDownloadRequest={handleDownloadRequest} onDownloadAllRequests={handleDownloadAllRequests} query={normalizedAdminSearch} />
+          <AdminRequestsPanel requests={adminRequests} onViewRequest={(request) => { setSelectedRequest(request); setActiveAdminModal("request"); }} onCycleRequestStatus={handleCycleRequestStatus} onDownloadRequest={handleDownloadRequest} onDownloadAllRequests={handleDownloadAllRequests} query={normalizedAdminSearch} />
           <AdminFeaturedPanel highlights={adminHighlights} onAddHighlight={handleOpenHighlightModal} onEditHighlight={handleOpenEditHighlightModal} onDeleteHighlight={handleDeleteHighlight} query={normalizedAdminSearch} />
         </div>
       </>
@@ -3961,7 +5025,7 @@ function AdminDashboardPage() {
         </nav>
         <div className="admin-sidebar-note">
           <strong>Django REST ready</strong>
-          <span>Frontend mockup only. No backend writes yet.</span>
+          <span>Catalog, content, and request controls use API writes.</span>
         </div>
       </aside>
       <main
@@ -3976,32 +5040,80 @@ function AdminDashboardPage() {
           <div className="admin-topbar-actions">
             <label><Search size={17} /><input value={adminSearch} onChange={(event) => setAdminSearch(event.target.value)} placeholder="Search content, requests, clients..." /></label>
             <a href="/" target="_blank" rel="noreferrer"><Eye size={16} /> View Site</a>
+            <button className="admin-action admin-action-light" type="button" onClick={handleAdminLogout}><LucideUserRound size={16} /> Log Out</button>
           </div>
         </header>
         <div className="admin-notice" role="status"><ClipboardList size={16} /> {adminNotice}</div>
+        {adminToast && (
+          <div className={`admin-toast admin-toast-${adminToast.type}`} role="alert">
+            <ClipboardList size={16} />
+            <span>{adminToast.message}</span>
+            <button type="button" onClick={() => setAdminToast(null)} aria-label="Dismiss message"><LucideX size={14} /></button>
+          </div>
+        )}
         {renderAdminPanel()}
       </main>
       {activeAdminModal === "book" && (
         <AdminModal
           eyebrow="Shop manager"
-          title="Add new book"
-          onClose={() => setActiveAdminModal(null)}
+          title={editingProductId ? "Edit book or product" : "Add new book"}
+          onClose={() => {
+            setActiveAdminModal(null);
+            setEditingProductId(null);
+          }}
           footer={(
             <>
-              <button type="button" onClick={() => setActiveAdminModal(null)}>Cancel</button>
-              <button type="submit" form="admin-book-form"><Save size={16} /> Add Book</button>
+              <button type="button" onClick={() => {
+                setActiveAdminModal(null);
+                setEditingProductId(null);
+              }}>Cancel</button>
+              <button type="submit" form="admin-book-form"><Save size={16} /> {editingProductId ? "Save Changes" : "Add Book"}</button>
             </>
           )}
         >
-          <form className="admin-modal-form" id="admin-book-form" onSubmit={handleAddProduct}>
+          <form className="admin-modal-form" id="admin-book-form" onSubmit={handleSaveProduct}>
             <label>Book Title<input value={bookDraft.title} onChange={(event) => setBookDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="Little Wings, Big Dreams" autoFocus /></label>
+            <label>Subtitle<input value={bookDraft.subtitle} onChange={(event) => setBookDraft((draft) => ({ ...draft, subtitle: event.target.value }))} placeholder="A guided story for brave kids" /></label>
             <label>Author / Brand<input value={bookDraft.author} onChange={(event) => setBookDraft((draft) => ({ ...draft, author: event.target.value }))} placeholder="Daniel the Booksmith" /></label>
-            <label>Category<input value={bookDraft.category_label} onChange={(event) => setBookDraft((draft) => ({ ...draft, category_label: event.target.value }))} placeholder="Children's Book" /></label>
+            <label>Category Label<select value={bookDraft.category_label} onChange={(event) => {
+              const option = [{ label: "Shop all", slug: "all" }, ...adminShopCategoryItems].find((item) => item.label === event.target.value);
+              setBookDraft((draft) => ({ ...draft, category_label: event.target.value, category: option?.slug || draft.category }));
+            }}>{[{ label: "Shop all", slug: "all" }, ...adminShopCategoryItems].map((option) => <option value={option.label} key={option.slug}>{option.label}</option>)}</select></label>
+            <label>Category Slug<input value={bookDraft.category} onChange={(event) => setBookDraft((draft) => ({ ...draft, category: event.target.value }))} placeholder="children-books" /></label>
             <label>Price<input value={bookDraft.price} onChange={(event) => setBookDraft((draft) => ({ ...draft, price: event.target.value }))} placeholder="14.99" /></label>
+            <label>Compare At Price<input value={bookDraft.compareAtPrice} onChange={(event) => setBookDraft((draft) => ({ ...draft, compareAtPrice: event.target.value }))} placeholder="19.99" /></label>
             <label>Inventory<input value={bookDraft.inventory} onChange={(event) => setBookDraft((draft) => ({ ...draft, inventory: event.target.value }))} placeholder="25" /></label>
+            <label>SKU<input value={bookDraft.sku} onChange={(event) => setBookDraft((draft) => ({ ...draft, sku: event.target.value }))} placeholder="DJB-001" /></label>
             <label>Amazon / Store Link<input value={bookDraft.amazonUrl} onChange={(event) => setBookDraft((draft) => ({ ...draft, amazonUrl: event.target.value }))} placeholder="https://..." /></label>
+            <label>External Link<input value={bookDraft.externalUrl} onChange={(event) => setBookDraft((draft) => ({ ...draft, externalUrl: event.target.value }))} placeholder="https://..." /></label>
+            <label className="admin-modal-wide">Image 1 URL or Asset Path<input value={bookDraft.imageUrl} onChange={(event) => setBookDraft((draft) => ({ ...draft, imageUrl: event.target.value }))} placeholder="/assets/books/my-cover.png or https://..." /></label>
+            <label className="admin-modal-wide">Image 2 URL or Asset Path<input value={bookDraft.imageUrl2} onChange={(event) => setBookDraft((draft) => ({ ...draft, imageUrl2: event.target.value }))} placeholder="/assets/books/inside-spread.png or https://..." /></label>
+            <label className="admin-modal-wide">Image 3 URL or Asset Path<input value={bookDraft.imageUrl3} onChange={(event) => setBookDraft((draft) => ({ ...draft, imageUrl3: event.target.value }))} placeholder="/assets/books/detail.png or https://..." /></label>
+            <label>Cover Theme<input value={bookDraft.cover} onChange={(event) => setBookDraft((draft) => ({ ...draft, cover: event.target.value }))} placeholder="orange" /></label>
+            <label>Accent Color<input value={bookDraft.accent} onChange={(event) => setBookDraft((draft) => ({ ...draft, accent: event.target.value }))} placeholder="#e3450b" /></label>
+            <label>Age Range<input value={bookDraft.ageRange} onChange={(event) => setBookDraft((draft) => ({ ...draft, ageRange: event.target.value }))} placeholder="Ages 4-8" /></label>
+            <label>Format<input value={bookDraft.format} onChange={(event) => setBookDraft((draft) => ({ ...draft, format: event.target.value }))} placeholder="Paperback, PDF, Bundle" /></label>
             <label className="admin-modal-wide">Short Description<textarea value={bookDraft.description} onChange={(event) => setBookDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Describe the book for the shop page." /></label>
-            <div className="admin-upload-box"><Upload size={20} /><strong>Upload cover or product images</strong><span>Frontend placeholder for Django media upload</span></div>
+            <label className="admin-modal-wide">Product Features<textarea value={bookDraft.featuresText} onChange={(event) => setBookDraft((draft) => ({ ...draft, featuresText: event.target.value }))} placeholder="One feature per line" /></label>
+            <label className="admin-check-field"><input type="checkbox" checked={bookDraft.published} onChange={(event) => setBookDraft((draft) => ({ ...draft, published: event.target.checked }))} /> Published</label>
+            <label className="admin-check-field"><input type="checkbox" checked={bookDraft.featured} onChange={(event) => setBookDraft((draft) => ({ ...draft, featured: event.target.checked }))} /> Featured</label>
+            <label className="admin-check-field"><input type="checkbox" checked={bookDraft.digital} onChange={(event) => setBookDraft((draft) => ({ ...draft, digital: event.target.checked }))} /> Digital Product</label>
+            <label className="admin-upload-box admin-click-upload admin-modal-wide">
+              <Upload size={20} />
+              <strong>{bookDraft.imageFiles.length ? `${bookDraft.imageFiles.length} image upload ready` : "Use URLs or upload up to 3 images"}</strong>
+              <span>Saved images will appear in the shop card and product detail gallery.</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(event) => setBookDraft((draft) => ({ ...draft, imageFiles: Array.from(event.target.files || []).slice(0, 3) }))}
+              />
+            </label>
+            {productImagePreviews.length > 0 && (
+              <div className="admin-media-preview-grid">
+                {productImagePreviews.map((image, index) => <img src={image} alt={`Product preview ${index + 1}`} key={`${image}-${index}`} />)}
+              </div>
+            )}
           </form>
         </AdminModal>
       )}
@@ -4019,19 +5131,105 @@ function AdminDashboardPage() {
                 setActiveAdminModal(null);
                 setEditingCourseId(null);
               }}>Cancel</button>
-              <button type="submit" form="admin-course-form"><Save size={16} /> {editingCourseId ? "Save Changes" : "Add Course"}</button>
+              <button type="submit" form="admin-course-form" disabled={courseMediaUpload.uploading}><Save size={16} /> {editingCourseId ? "Save Changes" : "Add Course"}</button>
             </>
           )}
         >
           <form className="admin-modal-form" id="admin-course-form" onSubmit={handleAddCourse}>
             <label>Course Title<input value={courseDraft.title} onChange={(event) => setCourseDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="Book Idea Blueprint" autoFocus /></label>
+            <label>Subtitle<input value={courseDraft.subtitle} onChange={(event) => setCourseDraft((draft) => ({ ...draft, subtitle: event.target.value }))} placeholder="A focused lesson for authors" /></label>
             <label>Category<select value={courseDraft.category} onChange={(event) => setCourseDraft((draft) => ({ ...draft, category: event.target.value }))}>{courseCategories.map((category) => <option value={category.title} key={category.title}>{category.title}</option>)}</select></label>
             <label>Price<input value={courseDraft.price} onChange={(event) => setCourseDraft((draft) => ({ ...draft, price: event.target.value }))} placeholder="$0" /></label>
             <label>Status<select value={courseDraft.status} onChange={(event) => setCourseDraft((draft) => ({ ...draft, status: event.target.value }))}><option>Draft</option><option>Coming soon</option><option>Published</option></select></label>
-            <label className="admin-modal-wide">Embedded Link<input value={courseDraft.embedUrl} onChange={(event) => setCourseDraft((draft) => ({ ...draft, embedUrl: event.target.value }))} placeholder="YouTube, Vimeo, Canva, Gumroad, etc." /></label>
+            <label>Duration<input value={courseDraft.duration} onChange={(event) => setCourseDraft((draft) => ({ ...draft, duration: event.target.value }))} placeholder="2h 30m" /></label>
+            <label>Level<input value={courseDraft.level} onChange={(event) => setCourseDraft((draft) => ({ ...draft, level: event.target.value }))} placeholder="Beginner" /></label>
+            <label className="admin-modal-wide">Embedded Link<input value={courseDraft.embedUrl} onChange={(event) => setCourseDraft((draft) => ({ ...draft, embedUrl: event.target.value }))} placeholder="YouTube, Vimeo, Canva, Gumroad, private lesson player, etc." /></label>
+            <label className="admin-modal-wide">Intro Video URL or Asset Path<input value={courseDraft.introVideoUrl} onChange={(event) => setCourseDraft((draft) => ({ ...draft, introVideoUrl: event.target.value }))} placeholder="https://... or /media/uploads/intro.mp4" /></label>
+            <label className="admin-modal-wide">Thumbnail URL or Asset Path<input value={courseDraft.thumbnailUrl} onChange={(event) => setCourseDraft((draft) => ({ ...draft, thumbnailUrl: event.target.value }))} placeholder="https://... or /media/uploads/thumb.jpg" /></label>
+            <div className="admin-course-upload-grid">
+              <label className="admin-upload-box admin-click-upload">
+                <Upload size={20} />
+                <strong>{courseDraft.thumbnailUrl ? "Change thumbnail" : "Upload thumbnail"}</strong>
+                <span>Saved thumbnails appear on the course card.</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={courseMediaUpload.uploading}
+                  onChange={(event) => {
+                    handleCourseMediaSelected(event.target.files?.[0], "thumbnail");
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              <label className="admin-upload-box admin-click-upload">
+                <Upload size={20} />
+                <strong>{courseDraft.introVideoUrl ? "Change intro video" : "Upload intro video"}</strong>
+                <span>Short preview videos can be uploaded here.</span>
+                <input
+                  type="file"
+                  accept="video/*"
+                  disabled={courseMediaUpload.uploading}
+                  onChange={(event) => {
+                    handleCourseMediaSelected(event.target.files?.[0], "intro");
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {courseMediaUpload.uploading && (
+              <div className="admin-upload-progress admin-modal-wide">
+                <span style={{ width: `${courseMediaUpload.progress}%` }} />
+                <strong>{courseMediaUpload.kind === "thumbnail" ? "Uploading thumbnail" : "Uploading intro video"} {courseMediaUpload.progress}%</strong>
+              </div>
+            )}
+            {(courseDraft.thumbnailUrl || courseDraft.introVideoUrl) && (
+              <div className="admin-course-preview-grid">
+                {courseDraft.thumbnailUrl && (
+                  <div className="admin-course-preview-card">
+                    <img src={resolveMediaUrl(courseDraft.thumbnailUrl)} alt="Course thumbnail preview" />
+                    <button type="button" onClick={() => setCourseDraft((draft) => ({ ...draft, thumbnailUrl: "" }))}><Trash2 size={14} /> Remove thumbnail</button>
+                  </div>
+                )}
+                {courseDraft.introVideoUrl && (
+                  <div className="admin-course-preview-card">
+                    <video src={resolveMediaUrl(courseDraft.introVideoUrl)} controls />
+                    <button type="button" onClick={() => setCourseDraft((draft) => ({ ...draft, introVideoUrl: "" }))}><Trash2 size={14} /> Remove video</button>
+                  </div>
+                )}
+              </div>
+            )}
             <label className="admin-modal-wide">Course Description<textarea value={courseDraft.description} onChange={(event) => setCourseDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="What will students learn?" /></label>
-            <div className="admin-upload-box"><Upload size={20} /><strong>Upload thumbnail or course files</strong><span>Frontend placeholder for Django media upload</span></div>
+            <label className="admin-modal-wide">Course Outcomes<textarea value={courseDraft.outcomesText} onChange={(event) => setCourseDraft((draft) => ({ ...draft, outcomesText: event.target.value }))} placeholder="One outcome per line" /></label>
+            <label className="admin-modal-wide">Course Resources<textarea value={courseDraft.resourcesText} onChange={(event) => setCourseDraft((draft) => ({ ...draft, resourcesText: event.target.value }))} placeholder="One resource per line" /></label>
           </form>
+        </AdminModal>
+      )}
+      {activeAdminModal === "request" && selectedRequest && (
+        <AdminModal
+          eyebrow="Project request"
+          title={selectedRequest.name || "Client request"}
+          onClose={() => {
+            setActiveAdminModal(null);
+            setSelectedRequest(null);
+          }}
+          footer={(
+            <>
+              <button type="button" onClick={() => {
+                setActiveAdminModal(null);
+                setSelectedRequest(null);
+              }}>Close</button>
+              <button type="button" onClick={() => handleDownloadRequest(selectedRequest)}><Download size={16} /> Download Report</button>
+            </>
+          )}
+        >
+          <div className="admin-request-detail">
+            {Object.entries(selectedRequest).map(([key, value]) => (
+              <div key={key}>
+                <strong>{key.replace(/_/g, " ")}</strong>
+                <span>{typeof value === "object" && value !== null ? JSON.stringify(value, null, 2) : String(value || "Not provided")}</span>
+              </div>
+            ))}
+          </div>
         </AdminModal>
       )}
       {activeAdminModal === "portfolio" && (
@@ -4056,11 +5254,26 @@ function AdminDashboardPage() {
             <label>Project Title<input value={portfolioDraft.title} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="Children's Book Cover Collection" autoFocus /></label>
             <label>Category<select value={portfolioDraft.category} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, category: event.target.value }))}>{portfolioCategories.filter((category) => category.id !== "all").map((category) => <option value={category.id} key={category.id}>{category.label}</option>)}</select></label>
             <label>Image Number<input value={portfolioDraft.image} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, image: event.target.value }))} placeholder="03" /></label>
+            <label>Image URL or Asset Path<input value={portfolioDraft.imageUrl} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, imageUrl: event.target.value }))} placeholder="/media/uploads/project.jpg or https://..." /></label>
             <label>Client / Brand<input value={portfolioDraft.client} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, client: event.target.value }))} placeholder="Tangie Cokes" /></label>
             <label>Status<select value={portfolioDraft.status} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, status: event.target.value }))}><option>Draft</option><option>Visible</option><option>Featured</option><option>Archived</option></select></label>
             <label>Embedded / Project Link<input value={portfolioDraft.embedUrl} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, embedUrl: event.target.value }))} placeholder="Amazon, Canva, YouTube, Behance, etc." /></label>
             <label className="admin-modal-wide">Project Description<textarea value={portfolioDraft.description} onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Add project notes, deliverables, client instructions, or case study details." /></label>
-            <div className="admin-upload-box"><Upload size={20} /><strong>Upload portfolio image or files</strong><span>Frontend placeholder for Django media upload</span></div>
+            <label className="admin-upload-box admin-click-upload admin-modal-wide">
+              <Upload size={20} />
+              <strong>{portfolioDraft.imageFile ? portfolioDraft.imageFile.name : "Upload portfolio image"}</strong>
+              <span>Choose an image. It will upload to Django when you save.</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => setPortfolioDraft((draft) => ({ ...draft, imageFile: event.target.files?.[0] || null }))}
+              />
+            </label>
+            {portfolioImagePreview && (
+              <div className="admin-media-preview-grid admin-portfolio-preview">
+                <img src={portfolioImagePreview} alt="Portfolio preview" />
+              </div>
+            )}
           </form>
         </AdminModal>
       )}
@@ -4092,7 +5305,17 @@ function AdminDashboardPage() {
             <label>Project Name<input value={reviewDraft.project} onChange={(event) => setReviewDraft((draft) => ({ ...draft, project: event.target.value }))} placeholder="Children's book project" /></label>
             <label>Profile Image Path<input value={reviewDraft.image} onChange={(event) => setReviewDraft((draft) => ({ ...draft, image: event.target.value }))} placeholder="/assets/reviews/name.jpg" /></label>
             <label className="admin-modal-wide">Review Text<textarea value={reviewDraft.quote} onChange={(event) => setReviewDraft((draft) => ({ ...draft, quote: event.target.value }))} placeholder="Paste the client's testimonial here." /></label>
-            <div className="admin-upload-box"><Upload size={20} /><strong>Upload reviewer headshot</strong><span>Frontend placeholder for Django media upload</span></div>
+            <label className="admin-upload-box admin-click-upload">
+              <Upload size={20} />
+              <strong>{reviewDraft.imageFile ? reviewDraft.imageFile.name : "Upload reviewer headshot"}</strong>
+              <span>Click to choose an image. It will upload to Django when you save.</span>
+              <input type="file" accept="image/*" onChange={(event) => setReviewDraft((draft) => ({ ...draft, imageFile: event.target.files?.[0] || null }))} />
+            </label>
+            {reviewImagePreview && (
+              <div className="admin-media-preview-grid admin-review-preview">
+                <img src={reviewImagePreview} alt="Reviewer preview" />
+              </div>
+            )}
           </form>
         </AdminModal>
       )}
@@ -4110,13 +5333,35 @@ function AdminDashboardPage() {
                 setActiveAdminModal(null);
                 setEditingHighlightIndex(null);
               }}>Cancel</button>
-              <button type="submit" form="admin-highlight-form"><Save size={16} /> {editingHighlightIndex !== null ? "Save Changes" : "Add Highlight"}</button>
+              <button type="submit" form="admin-highlight-form" disabled={highlightImageUploading}><Save size={16} /> {editingHighlightIndex !== null ? "Save Changes" : "Add Highlight"}</button>
             </>
           )}
         >
           <form className="admin-modal-form" id="admin-highlight-form" onSubmit={handleSaveHighlight}>
             <label className="admin-modal-wide">Featured Work Title<input value={highlightDraft} onChange={(event) => setHighlightDraft(event.target.value)} placeholder="MISA Educational Series" autoFocus /></label>
-            <div className="admin-upload-box"><Upload size={20} /><strong>Optional supporting image</strong><span>Frontend placeholder for Django media upload</span></div>
+            <label className="admin-modal-wide">Image URL or Asset Path<input value={highlightImageUrl} onChange={(event) => {
+              setHighlightImageUrl(event.target.value);
+              setHighlightImagePreview(event.target.value);
+            }} placeholder="/media/uploads/featured-work.jpg or https://..." /></label>
+            <label className="admin-upload-box admin-click-upload admin-modal-wide">
+              <Upload size={20} />
+              <strong>{highlightImageUploading ? "Uploading image..." : "Optional supporting image"}</strong>
+              <span>Choose an image to add it to the Django media library.</span>
+              <input
+                type="file"
+                accept="image/*"
+                disabled={highlightImageUploading}
+                onChange={(event) => {
+                  handleHighlightImageSelected(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {highlightImagePreview && (
+              <div className="admin-media-preview-grid admin-highlight-preview">
+                <img src={resolveMediaUrl(highlightImagePreview)} alt="Supporting preview" />
+              </div>
+            )}
           </form>
         </AdminModal>
       )}
@@ -4203,7 +5448,7 @@ function App() {
   }
   if (path === "/admin") {
     document.title = "Admin Dashboard | Danajet";
-    return <AdminDashboardPage />;
+    return <AdminPage />;
   }
 
   document.title = "Danajet | Helping Authors Make Their Books Soar";
