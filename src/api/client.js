@@ -1,10 +1,13 @@
 function defaultApiBaseUrl() {
-  if (typeof window === "undefined") return "http://127.0.0.1:8000";
-  const host = window.location.hostname === "localhost" ? "localhost" : "127.0.0.1";
-  return `http://${host}:8000`;
+  return "https://danajet-api.onrender.com/api/";
 }
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl();
+function normalizeApiBaseUrl(value) {
+  const cleaned = String(value || "").replace(/\/+$/, "");
+  return cleaned.endsWith("/api") ? cleaned.slice(0, -4) : cleaned;
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL || defaultApiBaseUrl());
 
 export function resolveMediaUrl(value) {
   if (!value) return "";
@@ -57,7 +60,8 @@ async function ensureCsrfToken() {
     throw new Error("Unable to prepare secure request.");
   }
 
-  token = getCookie("csrftoken");
+  const data = await response.json().catch(() => null);
+  token = getCookie("csrftoken") || data?.csrfToken || "";
   return token ? decodeURIComponent(token) : "";
 }
 
