@@ -63,7 +63,7 @@ async function ensureCsrfToken() {
   }
 
   const data = await response.json().catch(() => null);
-  token = getCookie("csrftoken") || data?.csrfToken || "";
+  token = isCrossOriginApi ? data?.csrfToken || "" : getCookie("csrftoken") || data?.csrfToken || "";
   return token ? decodeURIComponent(token) : "";
 }
 
