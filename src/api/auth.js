@@ -8,7 +8,9 @@ function getCartSessionKey() {
 }
 
 function normalizeUser(payload) {
-  return payload?.user || payload || null;
+  if (!payload) return null;
+  if (Object.prototype.hasOwnProperty.call(payload, "user")) return payload.user || null;
+  return payload;
 }
 
 export async function getCurrentUser() {
