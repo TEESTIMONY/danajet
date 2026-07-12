@@ -48,7 +48,9 @@ function getCookie(name) {
 }
 
 async function ensureCsrfToken() {
-  let token = getCookie("csrftoken");
+  const apiOrigin = new URL(API_BASE_URL).origin;
+  const isCrossOriginApi = typeof window !== "undefined" && apiOrigin !== window.location.origin;
+  let token = isCrossOriginApi ? "" : getCookie("csrftoken");
   if (token) return decodeURIComponent(token);
 
   const response = await fetch(`${API_BASE_URL}/api/auth/csrf/`, {
