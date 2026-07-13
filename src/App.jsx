@@ -1102,17 +1102,18 @@ function CourseCatalog({ showHeading = true }) {
 
   const categories = courses.reduce((groups, course) => {
     const title = course.category || "Courses";
-    const existing = groups.find((item) => item.title === title);
+    const id = course.categorySlug || title;
+    const existing = groups.find((item) => item.id === id);
     if (existing) {
       existing.items.push(course);
     } else {
-      groups.push({ title, icon: course.categoryIcon || "", items: [course] });
+      groups.push({ id, title, icon: course.categoryIcon || "", items: [course] });
     }
     return groups;
   }, []);
   const visibleCategories = activeCategory === "all"
     ? categories
-    : categories.filter((category) => category.title === activeCategory);
+    : categories.filter((category) => category.id === activeCategory);
 
   return (
     <div className="course-catalog">
@@ -1133,12 +1134,12 @@ function CourseCatalog({ showHeading = true }) {
         </button>
         {categories.map((category) => (
           <button
-            className={activeCategory === category.title ? "is-active" : ""}
+            className={activeCategory === category.id ? "is-active" : ""}
             type="button"
-            onClick={() => setActiveCategory(category.title)}
-            key={category.title}
+            onClick={() => setActiveCategory(category.id)}
+            key={category.id}
           >
-            <span>{category.icon}</span>
+            {category.icon && <span>{category.icon}</span>}
             {category.title}
           </button>
         ))}
@@ -1148,9 +1149,9 @@ function CourseCatalog({ showHeading = true }) {
         {!isLoading && visibleCategories.length === 0 && <div className="cart-empty"><h2>No courses found.</h2></div>}
         {visibleCategories.map((category) => {
           return (
-          <section className="course-category" key={category.title}>
+          <section className="course-category" key={category.id}>
             <div className="course-category-heading">
-              <span>{category.icon}</span>
+              {category.icon && <span>{category.icon}</span>}
               <h2>{category.title}</h2>
             </div>
             <div className="course-product-grid">

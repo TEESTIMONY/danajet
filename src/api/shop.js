@@ -34,6 +34,8 @@ export function normalizeProduct(product) {
 export function normalizeCourse(course) {
   const metadata = metadataOf(course);
   const rating = metadata.rating || "4.9";
+  const rawCategoryIcon = metadata.category_icon || "";
+  const categoryIcon = rawCategoryIcon && !/^[a-z0-9-]+$/i.test(rawCategoryIcon) ? rawCategoryIcon : "";
   return {
     ...course,
     courseTitle: course.title,
@@ -45,7 +47,7 @@ export function normalizeCourse(course) {
     compare_at_price: metadata.compare_at_price || "49.00",
     category: course.category_detail?.name || course.category || "Courses",
     categorySlug: course.category_detail?.slug || "",
-    categoryIcon: metadata.category_icon || "",
+    categoryIcon,
   };
 }
 
