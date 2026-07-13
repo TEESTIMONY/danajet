@@ -83,6 +83,7 @@ import {
   updateCartItemQuantity,
 } from "./api/cart";
 import { resolveMediaUrl } from "./api/client";
+import { subscribeToNewsletter } from "./api/newsletter";
 import { getCourse, getCourses, getProduct, getProducts, getShopCategories } from "./api/shop";
 import { mockProducts, shopCategories } from "./data/products";
 
@@ -1950,6 +1951,7 @@ function CheckoutPage() {
   const estimatedShipping = cart.length ? 5.99 : 0;
   const estimatedTotal = subtotal + estimatedShipping;
   const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
+  const hasCourseItems = cart.some((item) => item.slug?.startsWith("courses/") || item.item_type === "course");
 
   useEffect(() => {
     let isMounted = true;
@@ -2030,13 +2032,17 @@ function CheckoutPage() {
                       <p className="eyebrow">Checkout received</p>
                       <h2>We have your order details.</h2>
                       <p>Thank you. Danajet will review your order and follow up with the next step.{orderNumber && ` Order ${orderNumber} is saved.`}</p>
-                      <a className="button" href="/">Back Home <ArrowRight size={17} /></a>
+                      <div className="checkout-next-actions">
+                        <a className="button" href="/">Back Home <ArrowRight size={17} /></a>
+                        <a className="button button-outline" href="/login">Create or sign in to track orders</a>
+                      </div>
                     </div>
                   ) : (
                     <>
                       <div className="checkout-form-heading">
                         <p className="eyebrow">Customer details</p>
                         <h2>Complete your order.</h2>
+                        <p>No account is required. Returning customers can <a href="/login">sign in</a> first to keep this order with their profile.</p>
                       </div>
                       <div className="checkout-grid">
                         <label>First name<input name="firstName" autoComplete="given-name" required /></label>
@@ -2053,6 +2059,7 @@ function CheckoutPage() {
                       <div className="checkout-payment-panel">
                         <p className="eyebrow">Payment</p>
                         <strong>Payment details will be confirmed after your order is reviewed.</strong>
+                        {hasCourseItems && <span>Course access will be connected to the email address used for checkout.</span>}
                       </div>
                       {checkoutError && <p className="form-error">{checkoutError}</p>}
                       <button className="button" type="submit" disabled={isSubmitting}>
@@ -2150,6 +2157,9 @@ function BrandStickerField({ className = "" }) {
 
 function Footer() {
   const footer = useFooterSettings();
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterStatus, setNewsletterStatus] = useState("");
+  const [isNewsletterSubmitting, setIsNewsletterSubmitting] = useState(false);
   const email = footer.email || adminContactDefaults.email;
   const whatsapp = footer.whatsapp || adminContactDefaults.whatsapp;
   const whatsappHref = whatsapp.startsWith("http") ? whatsapp : `/contact#whatsapp`;
@@ -2161,6 +2171,21 @@ function Footer() {
     tiktok: footer.tiktok || adminContactDefaults.tiktok,
   };
 
+  const handleNewsletterSubmit = async (event) => {
+    event.preventDefault();
+    setNewsletterStatus("");
+    setIsNewsletterSubmitting(true);
+    try {
+      await subscribeToNewsletter(newsletterEmail);
+      setNewsletterEmail("");
+      setNewsletterStatus("Thanks for joining.");
+    } catch (error) {
+      setNewsletterStatus(error.message || "Unable to join right now.");
+    } finally {
+      setIsNewsletterSubmitting(false);
+    }
+  };
+
   return (
     <footer className="footer">
       <BrandStickerField className="footer-sticker-field" />
@@ -2169,6 +2194,26 @@ function Footer() {
           <BrandMark light />
           <p>{footer.footerCopy || adminContactDefaults.footerCopy}</p>
           <a className="footer-brand-link" href="/blog">Blog Posts <ArrowRight size={15} /></a>
+          <form className="footer-newsletter" onSubmit={handleNewsletterSubmit}>
+            <div>
+              <strong>Join the Danajet Network</strong>
+              <span>Books. Learning. Creativity. Delivered to your inbox.</span>
+            </div>
+            <label>
+              <span>Email address</span>
+              <input
+                type="email"
+                value={newsletterEmail}
+                onChange={(event) => setNewsletterEmail(event.target.value)}
+                placeholder="Enter your email address"
+                required
+              />
+              <button type="submit" disabled={isNewsletterSubmitting}>
+                {isNewsletterSubmitting ? "Joining" : "Count me in"}
+              </button>
+            </label>
+            {newsletterStatus && <p>{newsletterStatus}</p>}
+          </form>
           <div className="socials">
             <a href={socialLinks.youtube} aria-label="YouTube"><Youtube /></a>
             <a href={socialLinks.instagram} aria-label="Instagram"><Instagram /></a>
@@ -2187,6 +2232,115 @@ function Footer() {
         <div><a href="#privacy">Privacy Policy</a><a href="#terms">Terms & Conditions</a></div>
       </div>
     </footer>
+  );
+}
+
+const NEWSLETTER_POPUP_KEY = "danajet-newsletter-popup-next-eligible";
+const NEWSLETTER_POPUP_SESSION_KEY = "danajet-newsletter-popup-session-shown";
+const NEWSLETTER_POPUP_DISMISS_DAYS = 2;
+const NEWSLETTER_POPUP_SUBSCRIBED_DAYS = 45;
+const NEWSLETTER_POPUP_CHANCE = 0.65;
+const newsletterPopupLines = [
+  {
+    title: "Join the Danajet Network",
+    copy: "Books. Learning. Creativity. Delivered to your inbox.",
+  },
+  {
+    title: "Join the Danajet Network",
+    copy: "Books. Learning. Creativity. Delivered to your inbox.",
+  },
+  {
+    title: "Join the Danajet Network",
+    copy: "Books. Learning. Creativity. Delivered to your inbox.",
+  },
+];
+
+function NewsletterVisitPopup() {
+  const [isVisible, setIsVisible] = useState(false);
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [content] = useState(() => newsletterPopupLines[Math.floor(Math.random() * newsletterPopupLines.length)]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    if (window.sessionStorage.getItem(NEWSLETTER_POPUP_SESSION_KEY)) return undefined;
+
+    const nextEligible = Number(window.localStorage.getItem(NEWSLETTER_POPUP_KEY) || 0);
+    if (Number.isFinite(nextEligible) && nextEligible > Date.now()) return undefined;
+    if (Math.random() > NEWSLETTER_POPUP_CHANCE) return undefined;
+
+    const delay = 4200 + Math.floor(Math.random() * 3200);
+    const timer = window.setTimeout(() => {
+      window.sessionStorage.setItem(NEWSLETTER_POPUP_SESSION_KEY, "true");
+      setIsVisible(true);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const pausePopup = (days) => {
+    const nextEligible = Date.now() + days * 24 * 60 * 60 * 1000;
+    window.localStorage.setItem(NEWSLETTER_POPUP_KEY, String(nextEligible));
+  };
+
+  const closePopup = () => {
+    pausePopup(NEWSLETTER_POPUP_DISMISS_DAYS);
+    setIsVisible(false);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setStatus("");
+    setIsSubmitting(true);
+    try {
+      await subscribeToNewsletter(email);
+      setStatus("You are on the list.");
+      setEmail("");
+      pausePopup(NEWSLETTER_POPUP_SUBSCRIBED_DAYS);
+      window.setTimeout(() => setIsVisible(false), 1400);
+    } catch (error) {
+      setStatus(error.message || "Unable to join right now.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <aside className="newsletter-popup" role="dialog" aria-modal="false" aria-label="Newsletter signup">
+      <button className="newsletter-popup-close" type="button" onClick={closePopup} aria-label="Close newsletter popup">
+        <X size={18} />
+      </button>
+      <h2>{content.title}</h2>
+      <p>{content.copy}</p>
+      <form onSubmit={handleSubmit}>
+        <label>
+          <span>Email address</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Enter your email address"
+            required
+          />
+        </label>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Joining" : "Count me in"}
+        </button>
+      </form>
+      {status && <span className="newsletter-popup-status">{status}</span>}
+      <button className="newsletter-popup-skip" type="button" onClick={closePopup}>Not now</button>
+    </aside>
+  );
+}
+
+function SiteExperience({ children }) {
+  return (
+    <>
+      {children}
+      <NewsletterVisitPopup />
+    </>
   );
 }
 
@@ -5397,55 +5551,55 @@ function App() {
 
   if (productMatch) {
     document.title = "Book Details | Danajet Shop";
-    return <ProductDetailPage slug={decodeURIComponent(productMatch[1])} />;
+    return <SiteExperience><ProductDetailPage slug={decodeURIComponent(productMatch[1])} /></SiteExperience>;
   }
   if (courseMatch) {
     document.title = "Course Details | Danajet Academy";
-    return <CourseDetailPage slug={decodeURIComponent(courseMatch[1])} />;
+    return <SiteExperience><CourseDetailPage slug={decodeURIComponent(courseMatch[1])} /></SiteExperience>;
   }
   if (path === "/shop") {
     document.title = "Shop Books | Danajet";
-    return <ShopPage />;
+    return <SiteExperience><ShopPage /></SiteExperience>;
   }
   if (path === "/cart") {
     document.title = "Shopping Bag | Danajet";
-    return <CartPage />;
+    return <SiteExperience><CartPage /></SiteExperience>;
   }
   if (path === "/checkout") {
     document.title = "Checkout | Danajet";
-    return <CheckoutPage />;
+    return <SiteExperience><CheckoutPage /></SiteExperience>;
   }
   if (path === "/login") {
     document.title = "Login | Danajet";
-    return <LoginPage />;
+    return <SiteExperience><LoginPage /></SiteExperience>;
   }
   if (path === "/courses") {
     document.title = "Courses & Tutorials | Danajet Academy";
-    return <CoursesPage />;
+    return <SiteExperience><CoursesPage /></SiteExperience>;
   }
   if (path === "/portfolio") {
     document.title = "Portfolio | Danajet BookLab";
-    return <PortfolioPage />;
+    return <SiteExperience><PortfolioPage /></SiteExperience>;
   }
   if (path === "/about") {
     document.title = "About Daniel & Danajet";
-    return <AboutPage />;
+    return <SiteExperience><AboutPage /></SiteExperience>;
   }
   if (path === "/request-project") {
     document.title = "Request a Project | Danajet BookLab";
-    return <RequestProjectPage />;
+    return <SiteExperience><RequestProjectPage /></SiteExperience>;
   }
   if (path === "/contact") {
     document.title = "Contact | Danajet";
-    return <ContactPage />;
+    return <SiteExperience><ContactPage /></SiteExperience>;
   }
   if (path === "/transport") {
     document.title = "Danajet Transport | Preparing for Takeoff";
-    return <TransportPage />;
+    return <SiteExperience><TransportPage /></SiteExperience>;
   }
   if (path === "/reviews") {
     document.title = "Client Reviews | Danajet";
-    return <ReviewsPage />;
+    return <SiteExperience><ReviewsPage /></SiteExperience>;
   }
   if (path === "/admin") {
     document.title = "Admin Dashboard | Danajet";
@@ -5453,7 +5607,7 @@ function App() {
   }
 
   document.title = "Danajet | Helping Authors Make Their Books Soar";
-  return <HomePage />;
+  return <SiteExperience><HomePage /></SiteExperience>;
 }
 
 export default App;

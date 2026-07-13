@@ -37,6 +37,12 @@ function clearStoredCartId() {
   localStorage.removeItem(CART_ID_KEY);
 }
 
+function clearStoredCartSession() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(CART_ID_KEY);
+  localStorage.removeItem(CART_SESSION_KEY);
+}
+
 function getCatalogItem(item) {
   return item.product_detail || item.course_detail || {};
 }
@@ -152,7 +158,7 @@ export async function submitCheckout(details) {
     throw new Error("Your shopping bag is empty.");
   }
 
-  return apiRequest("/api/checkout/", {
+  const order = await apiRequest("/api/checkout/", {
     method: "POST",
     body: {
       cart: cart.id,
@@ -160,4 +166,6 @@ export async function submitCheckout(details) {
       ...details,
     },
   });
+  clearStoredCartSession();
+  return order;
 }
